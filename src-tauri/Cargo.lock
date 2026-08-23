@@ -5820,7 +5820,7 @@ dependencies = [
 [[package]]
 name = "takanawa-core"
 version = "0.8.3"
-source = "git+https://github.com/huoshen80/takanawa.git?rev=a07daaf#a07daaff0076e985ff5aa279eb7f4cb6668f1d3d"
+source = "git+https://github.com/huoshen80/takanawa.git?rev=0a895b9#0a895b98476be131ff87288e27961a41d99b1795"
 dependencies = [
  "crc32fast",
  "fs2",
@@ -5831,7 +5831,7 @@ dependencies = [
 [[package]]
 name = "takanawa-http"
 version = "0.8.3"
-source = "git+https://github.com/huoshen80/takanawa.git?rev=a07daaf#a07daaff0076e985ff5aa279eb7f4cb6668f1d3d"
+source = "git+https://github.com/huoshen80/takanawa.git?rev=0a895b9#0a895b98476be131ff87288e27961a41d99b1795"
 dependencies = [
  "bytes",
  "futures-util",
