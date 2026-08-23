@@ -68,8 +68,8 @@ chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 parking_lot = "0.12.5"
 sha2 = "0.11.0"
 blake3 = "1.8.6"
-takanawa-core = { git = "https://github.com/huoshen80/takanawa.git", rev = "512a0c0" }
-takanawa-http = { git = "https://github.com/huoshen80/takanawa.git", rev = "512a0c0", default-features = false, features = [
+takanawa-core = { git = "https://github.com/huoshen80/takanawa.git", rev = "a07daaf" }
+takanawa-http = { git = "https://github.com/huoshen80/takanawa.git", rev = "a07daaf", default-features = false, features = [
     "tls-platform-native",
 ] }
 takanawa-reqwest = { package = "reqwest", version = "0.13.4", default-features = false, features = [

@@ -23,6 +23,7 @@ use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
 use tokio::sync::watch;
 
 const TAKANAWA_CHUNK_SIZE: u64 = 64 * 1024 * 1024;
+// Takanawa 会从该上限开始，并在服务端返回 429 时按下载任务自动降低并发。
 const TAKANAWA_PARALLELISM: usize = 8;
 const TAKANAWA_MAX_IO: usize = 24;
 const PROGRESS_REPORT_INTERVAL: Duration = Duration::from_millis(500);
