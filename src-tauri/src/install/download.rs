@@ -308,11 +308,8 @@ fn takanawa_snapshot_failure(
     http_status: Option<u16>,
     provider: &str,
 ) -> TaskFailure {
-    if is_expired_http_status(http_status) {
-        return TaskFailure::new(
-            "url_expired",
-            format!("下载直链已过期，请重新从资源提供方（{provider}）推送任务"),
-        );
+    if let Some(failure) = takanawa_http_failure(http_status, provider) {
+        return failure;
     }
     TaskFailure::new(
         "takanawa_download_failed",
@@ -323,8 +320,26 @@ fn takanawa_snapshot_failure(
     )
 }
 
-fn is_expired_http_status(status: Option<u16>) -> bool {
-    matches!(status, Some(401 | 403))
+fn takanawa_http_failure(status: Option<u16>, provider: &str) -> Option<TaskFailure> {
+    match status {
+        Some(401) => Some(TaskFailure::new(
+            "download_authorization_failed",
+            format!("下载授权已失效，请重新从资源提供方（{provider}）推送任务"),
+        )),
+        Some(403) => Some(TaskFailure::new(
+            "download_request_forbidden",
+            "下载请求被服务器拒绝",
+        )),
+        Some(429) => Some(TaskFailure::new(
+            "download_rate_limited",
+            "下载请求受到服务器限流，请稍后重试",
+        )),
+        Some(502..=504) => Some(TaskFailure::new(
+            "download_server_unavailable",
+            "下载服务器暂时不可用，请稍后重试",
+        )),
+        Some(_) | None => None,
+    }
 }
 
 pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Result<(), TaskFailure> {
@@ -431,11 +446,29 @@ mod tests {
     }
 
     #[test]
-    fn recognizes_expired_download_responses() {
-        assert!(is_expired_http_status(Some(401)));
-        assert!(is_expired_http_status(Some(403)));
-        assert!(!is_expired_http_status(Some(200)));
-        assert!(!is_expired_http_status(None));
+    fn classifies_terminal_download_http_statuses() {
+        assert_eq!(
+            takanawa_http_failure(Some(401), "sena-repo").unwrap().code,
+            "download_authorization_failed"
+        );
+        assert_eq!(
+            takanawa_http_failure(Some(403), "sena-repo").unwrap().code,
+            "download_request_forbidden"
+        );
+        assert_eq!(
+            takanawa_http_failure(Some(429), "sena-repo").unwrap().code,
+            "download_rate_limited"
+        );
+        for status in [502, 503, 504] {
+            assert_eq!(
+                takanawa_http_failure(Some(status), "sena-repo")
+                    .unwrap()
+                    .code,
+                "download_server_unavailable"
+            );
+        }
+        assert!(takanawa_http_failure(Some(500), "sena-repo").is_none());
+        assert!(takanawa_http_failure(None, "sena-repo").is_none());
     }
 
     #[tokio::test]
