@@ -31,6 +31,10 @@ fn main() {
     let _ = dotenvy::from_path(manifest_dir.join("../.env"));
     forward_env("BGM_APP_SECRET");
     prepare_seven_zip(&manifest_dir).unwrap_or_else(|error| panic!("准备内置 7-Zip 失败: {error}"));
+    #[cfg(target_os = "windows")]
+    println!(
+        "cargo:rustc-link-arg=/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'"
+    );
     tauri_build::build()
 }
 
