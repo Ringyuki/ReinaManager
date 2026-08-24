@@ -51,6 +51,9 @@ function getReloginMessage() {
 export async function logoutHikarinagiAuth(options?: { notify?: boolean }) {
 	await settingsService.updateSettings({ hikarinagiAuth: null });
 	updateCachedHikarinagiAuth(null);
+	queryClient.removeQueries({
+		queryKey: settingsKeys.hikarinagiCurrentUserProfile(),
+	});
 	await queryClient.invalidateQueries({ queryKey: settingsKeys.allSettings() });
 
 	if (options?.notify) {

@@ -17,6 +17,7 @@ import { fetchHikarinagiCurrentUserProfile } from "@/metadata/api/hikarinagi";
 import { fetchVndbCurrentUserProfile } from "@/metadata/api/vndb";
 import { remoteQueryOptions } from "@/providers/queryClient";
 import { settingsService } from "@/services/invoke";
+import { withHikarinagiAuth } from "@/services/oauth/hikarinagiAuthSession";
 import { getNetworkRequestContext } from "@/services/requestContext";
 import type { LogLevel, UpdateSettingsParams } from "@/types";
 
@@ -105,22 +106,25 @@ export function useVndbCurrentUserProfile(options?: SettingsQueryOptions) {
 }
 
 /**
- * 获取当前 Hikarinagi Token 对应的用户资料
+ * 获取当前 Hikarinagi 用户资料
  */
 export function useHikarinagiCurrentUserProfile(
 	options?: SettingsQueryOptions,
 ) {
 	const { data: settings } = useAllSettings(options);
-	const hikarinagiToken = settings?.hikarinagi_auth?.access_token ?? "";
+	const hasAuth = Boolean(settings?.hikarinagi_auth?.access_token);
 
 	return useQuery({
-		queryKey: settingsKeys.hikarinagiCurrentUserProfileByToken(hikarinagiToken),
+		queryKey: settingsKeys.hikarinagiCurrentUserProfile(),
 		queryFn: () =>
-			fetchHikarinagiCurrentUserProfile(
-				hikarinagiToken,
-				getNetworkRequestContext(),
-			),
-		enabled: (options?.enabled ?? true) && Boolean(hikarinagiToken),
+			withHikarinagiAuth(async (token) => {
+				if (!token) return null;
+				return fetchHikarinagiCurrentUserProfile(
+					token,
+					getNetworkRequestContext(),
+				);
+			}),
+		enabled: (options?.enabled ?? true) && hasAuth,
 		...remoteQueryOptions,
 	});
 }
