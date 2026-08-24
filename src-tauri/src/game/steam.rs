@@ -573,8 +573,10 @@ fn decode_shortcut_text(bytes: &[u8]) -> Result<String, String> {
             return Err("UTF-16LE 快捷方式字节长度无效".to_string());
         }
         let words = bytes
-            .chunks_exact(2)
-            .map(|bytes| u16::from_le_bytes([bytes[0], bytes[1]]));
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|&[b0, b1]| u16::from_le_bytes([b0, b1]));
         return char::decode_utf16(words)
             .collect::<Result<String, _>>()
             .map_err(|error| format!("快捷方式不是有效 UTF-16LE: {error}"));

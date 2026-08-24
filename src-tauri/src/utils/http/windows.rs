@@ -107,8 +107,10 @@ pub fn is_system_proxy_enabled() -> bool {
     byte_buffer.truncate(server_data_len as usize);
 
     let u16_slice: Vec<u16> = byte_buffer
-        .chunks_exact(2)
-        .map(|chunk| u16::from_ne_bytes([chunk[0], chunk[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|&chunk| u16::from_ne_bytes(chunk))
         .collect();
 
     let trimmed_slice = match u16_slice.iter().rposition(|&c| c != 0) {

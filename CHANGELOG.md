@@ -1,3 +1,59 @@
+## [0.29.0](https://github.com/huoshen80/ReinaManager/compare/v0.28.2...v0.29.0) (2026-08-24)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ✨ 新功能
+
+- *(task-manager)* 添加 Shionlib 空状态操作 ([d81f833](https://github.com/huoshen80/ReinaManager/commit/d81f833dcb69374191c5a478a590a0367d920ec6))
+- *(stats)* 添加响应式统计仪表盘 (#88) ([36125cc](https://github.com/huoshen80/ReinaManager/commit/36125ccfffe2bc9a4aeb4095dafdc2d263bf8866))
+- *(install)* 安装请求支持可选的校验和 ([b8a88c2](https://github.com/huoshen80/ReinaManager/commit/b8a88c2c738893768553424f0a721b5160b0803d))
+- *(auth)* 为 Hikarinagi OAuth 添加 catalog:full 权限范围 ([60bc35d](https://github.com/huoshen80/ReinaManager/commit/60bc35d27679b6d66ba7fdbaaea547efbccc5066))
+- *(library)* 支持导入云端收藏 ([7b91059](https://github.com/huoshen80/ReinaManager/commit/7b91059ff5156a867e76ec9ded472199a235e7c4))
+- *(cover)* 支持前端封面候选回退与镜像优先级 ([a5f7367](https://github.com/huoshen80/ReinaManager/commit/a5f73670cf58012c4e18a7cc60a209ccf9895320))
+- *(cover)* 根据代理可用性调整 VNDB 封面优先级 ([b6e771f](https://github.com/huoshen80/ReinaManager/commit/b6e771f02673ca900e1c9cebe4045de13c0362ed))
+- *(install)* 支持加密压缩包 ([97adfab](https://github.com/huoshen80/ReinaManager/commit/97adfabd07ff1bf3ff5da5e316affabf90a37148))
+
+### 🐛 Bug 修复
+
+- *(locales)* 简化月度时长标签 ([f8172a1](https://github.com/huoshen80/ReinaManager/commit/f8172a1618cd0ad6594a8d92d0a9f7d32ca223c5))
+- *(steam)* 将 Steam 兼容层加入游戏导入排除列表 (#85) ([fd74c20](https://github.com/huoshen80/ReinaManager/commit/fd74c20273db7f14663ee82fbb19d8a40b06be33))
+- *(build)* Windows 平台添加 ComCtl32 v6 清单依赖链接参数 ([cfdf45d](https://github.com/huoshen80/ReinaManager/commit/cfdf45d1c3a5e9b6ff563c17e4c1a9b3ddcd42cb))
+- *(install)* 细分下载 HTTP 失败类型 ([4b8e222](https://github.com/huoshen80/ReinaManager/commit/4b8e22250b2ffa65d4c69e95029b2540deb56eb2))
+- *(import)* 保留已获取的云端元数据 ([1c8c9cb](https://github.com/huoshen80/ReinaManager/commit/1c8c9cbecce7f3ef9e132fde30d6b25aa404198b))
+- *(oauth)* 获取 Hikarinagi 个人资料时刷新 Token ([4e9978b](https://github.com/huoshen80/ReinaManager/commit/4e9978b9d52c3091f74202497c8e1726aa484806))
+
+### 🚜 重构
+
+- *(ui)* 提取可复用的 PlayStatusIcon 组件 ([0633efe](https://github.com/huoshen80/ReinaManager/commit/0633efe4c7790e55307cd7c6120d02d40ea463d5))
+
+</details>
+
+### ✨ Features
+
+- *(task-manager)* Add Shionlib empty state action ([d81f833](https://github.com/huoshen80/ReinaManager/commit/d81f833dcb69374191c5a478a590a0367d920ec6))
+- *(stats)* Add responsive statistics dashboard (#88) ([36125cc](https://github.com/huoshen80/ReinaManager/commit/36125ccfffe2bc9a4aeb4095dafdc2d263bf8866))
+- *(install)* Allow optional checksum in install requests ([b8a88c2](https://github.com/huoshen80/ReinaManager/commit/b8a88c2c738893768553424f0a721b5160b0803d))
+- *(auth)* Add catalog:full scope for Hikarinagi OAuth ([60bc35d](https://github.com/huoshen80/ReinaManager/commit/60bc35d27679b6d66ba7fdbaaea547efbccc5066))
+- *(library)* Support importing cloud collections ([7b91059](https://github.com/huoshen80/ReinaManager/commit/7b91059ff5156a867e76ec9ded472199a235e7c4))
+- *(cover)* Support frontend image candidate fallback and mirror priorities ([a5f7367](https://github.com/huoshen80/ReinaManager/commit/a5f73670cf58012c4e18a7cc60a209ccf9895320))
+- *(cover)* Adapt VNDB cover priority based on proxy availability ([b6e771f](https://github.com/huoshen80/ReinaManager/commit/b6e771f02673ca900e1c9cebe4045de13c0362ed))
+- *(install)* Support encrypted archives ([97adfab](https://github.com/huoshen80/ReinaManager/commit/97adfabd07ff1bf3ff5da5e316affabf90a37148))
+
+### 🐛 Bug Fixes
+
+- *(locales)* Simplify monthly duration labels ([f8172a1](https://github.com/huoshen80/ReinaManager/commit/f8172a1618cd0ad6594a8d92d0a9f7d32ca223c5))
+- *(steam)* Add steam's compatibility layer to the game's import exclusion list (#85) ([fd74c20](https://github.com/huoshen80/ReinaManager/commit/fd74c20273db7f14663ee82fbb19d8a40b06be33))
+- *(build)* Add ComCtl32 v6 manifest dependency link-arg on Windows ([cfdf45d](https://github.com/huoshen80/ReinaManager/commit/cfdf45d1c3a5e9b6ff563c17e4c1a9b3ddcd42cb))
+- *(install)* Classify download HTTP failures ([4b8e222](https://github.com/huoshen80/ReinaManager/commit/4b8e22250b2ffa65d4c69e95029b2540deb56eb2))
+- *(import)* Preserve fetched cloud metadata ([1c8c9cb](https://github.com/huoshen80/ReinaManager/commit/1c8c9cbecce7f3ef9e132fde30d6b25aa404198b))
+- *(oauth)* Refresh token in hikarinagi profile ([4e9978b](https://github.com/huoshen80/ReinaManager/commit/4e9978b9d52c3091f74202497c8e1726aa484806))
+
+### 🚜 Refactor
+
+- *(ui)* Extract reusable PlayStatusIcon component ([0633efe](https://github.com/huoshen80/ReinaManager/commit/0633efe4c7790e55307cd7c6120d02d40ea463d5))
+
+
 ## [0.28.2](https://github.com/huoshen80/ReinaManager/compare/v0.28.1...v0.28.2) (2026-08-18)
 
 <details>
