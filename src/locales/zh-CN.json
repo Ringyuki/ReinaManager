@@ -136,10 +136,10 @@
 		},
 		"CloudCollectionImport": {
 			"cancel": "取消任务",
-			"cancelled": "已取消导入",
+			"cancelled": "已停止，已获取的元数据将在当前弹窗中保留",
 			"clearVisible": "清空",
 			"developer": "开发商：{{name}}",
-			"empty": "请选择来源并读取收藏",
+			"empty": "请选择来源并读取收藏（为防止重复请不要同时导入多源收藏！）",
 			"failed": "失败",
 			"fetchingDetails": "正在获取完整元数据",
 			"imported": "已导入",

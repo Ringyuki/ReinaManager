@@ -141,10 +141,10 @@
 		},
 		"CloudCollectionImport": {
 			"cancel": "Cancel Task",
-			"cancelled": "Import cancelled",
+			"cancelled": "Stopped. Retrieved metadata will remain available in this dialog.",
 			"clearVisible": "Clear",
 			"developer": "Developer: {{name}}",
-			"empty": "Select a source and load its collection",
+			"empty": "Select a source and load its collection (to avoid duplicates, do not import collections from multiple sources at the same time!)",
 			"failed": "Failed",
 			"fetchingDetails": "Fetching complete metadata",
 			"imported": "Imported",

@@ -227,6 +227,7 @@ export function loadCloudCollection(
 export async function prepareCloudCollectionItems(
 	items: CloudCollectionItem[],
 	signal: AbortSignal,
+	onItemPrepared: (result: PreparedCloudCollectionItem) => void,
 	onProgress: (completed: number, total: number) => void,
 ): Promise<PreparedCloudCollectionItem[]> {
 	if (items.length === 0) return [];
@@ -237,17 +238,27 @@ export async function prepareCloudCollectionItems(
 		fetchDetails: (item: CloudCollectionItem) => Promise<GameMetadataDraft>,
 	) => {
 		for (let index = 0; index < items.length; index++) {
+			signal.throwIfAborted();
 			const item = items[index];
 			try {
-				const metadata = await fetchDetails(item);
-				prepared.push({ item, metadata: withPersonalData(metadata, item) });
+				const metadata = item.metadata ?? (await fetchDetails(item));
+				const result = { item, metadata: withPersonalData(metadata, item) };
+				prepared.push(result);
+				onItemPrepared(result);
 			} catch (error) {
 				if (isAbortError(error)) throw error;
-				prepared.push({ item, error });
+				const result = { item, error };
+				prepared.push(result);
+				onItemPrepared(result);
 			}
 			onProgress(index + 1, items.length);
 		}
 	};
+
+	if (items.every((item) => item.metadata)) {
+		await prepare(async (item) => item.metadata as GameMetadataDraft);
+		return prepared;
+	}
 
 	if (source === "vndb") {
 		await prepare(async (item) => {

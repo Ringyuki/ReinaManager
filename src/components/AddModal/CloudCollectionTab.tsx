@@ -256,6 +256,27 @@ export default function CloudCollectionTab({
 			const prepared = await prepareCloudCollectionItems(
 				selectedItems,
 				controller.signal,
+				(result) => {
+					setItems((current) =>
+						current.map((item) => {
+							if (item.key !== result.item.key) return item;
+							if (result.metadata) {
+								return {
+									...item,
+									metadata: result.metadata,
+									importState:
+										item.importState === "imported" ? "imported" : "pending",
+									error: undefined,
+								};
+							}
+							return {
+								...item,
+								importState: "error",
+								error: getUserErrorMessage(result.error, t),
+							};
+						}),
+					);
+				},
 				(completed, total) => setProgress({ completed, total }),
 			);
 			const failedDetails = new Map(
@@ -272,13 +293,6 @@ export default function CloudCollectionTab({
 				): result is typeof result & {
 					metadata: NonNullable<typeof result.metadata>;
 				} => Boolean(result.metadata),
-			);
-
-			setItems((current) =>
-				current.map((item) => {
-					const error = failedDetails.get(item.key);
-					return error ? { ...item, importState: "error", error } : item;
-				}),
 			);
 
 			if (ready.length === 0) {
@@ -374,7 +388,10 @@ export default function CloudCollectionTab({
 		} catch (error) {
 			if (isAbortError(error)) {
 				snackbar.info(
-					t("components.CloudCollectionImport.cancelled", "已取消导入"),
+					t(
+						"components.CloudCollectionImport.cancelled",
+						"已停止，已获取的元数据将在当前弹窗中保留",
+					),
 				);
 			} else {
 				snackbar.error(getUserErrorMessage(error, t));
@@ -580,7 +597,7 @@ export default function CloudCollectionTab({
 												)
 											: t(
 													"components.CloudCollectionImport.empty",
-													"请选择来源并读取收藏",
+													"请选择来源并读取收藏（为防止重复请不要同时导入多源收藏！）",
 												)}
 								</Typography>
 							</Box>
@@ -624,6 +641,24 @@ export default function CloudCollectionTab({
 									]
 										.filter(Boolean)
 										.join(" · ");
+									const statusChip =
+										item.importState === "imported"
+											? {
+													color: "success" as const,
+													label: t(
+														"components.CloudCollectionImport.imported",
+														"已导入",
+													),
+												}
+											: item.importState === "error"
+												? {
+														color: "error" as const,
+														label: t(
+															"components.CloudCollectionImport.failed",
+															"失败",
+														),
+													}
+												: null;
 									return (
 										<Box className="grid min-h-16 grid-cols-[auto_44px_minmax(0,1fr)_auto] items-center gap-3 border-0 border-b border-solid border-[var(--mui-palette-divider)] px-3 py-2">
 											<Checkbox
@@ -692,27 +727,11 @@ export default function CloudCollectionTab({
 														}
 													/>
 												)}
-												{item.importState !== "pending" && (
+												{statusChip && (
 													<Chip
 														size="small"
-														color={
-															item.importState === "error"
-																? "error"
-																: item.importState === "imported"
-																	? "success"
-																	: "default"
-														}
-														label={
-															item.importState === "imported"
-																? t(
-																		"components.CloudCollectionImport.imported",
-																		"已导入",
-																	)
-																: t(
-																		"components.CloudCollectionImport.failed",
-																		"失败",
-																	)
-														}
+														color={statusChip.color}
+														label={statusChip.label}
 													/>
 												)}
 											</Stack>

@@ -136,10 +136,10 @@
 		},
 		"CloudCollectionImport": {
 			"cancel": "取消任務",
-			"cancelled": "已取消匯入",
+			"cancelled": "已停止，已取得的詮釋資料將保留在目前對話框中",
 			"clearVisible": "清空",
 			"developer": "開發商：{{name}}",
-			"empty": "請選擇來源並讀取收藏",
+			"empty": "請選擇來源並讀取收藏（為避免重複，請勿同時匯入多個來源的收藏！）",
 			"failed": "失敗",
 			"fetchingDetails": "正在取得完整詮釋資料",
 			"imported": "已匯入",
