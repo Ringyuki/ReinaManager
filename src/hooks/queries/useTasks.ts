@@ -158,11 +158,13 @@ export type TaskAction = "pause" | "resume" | "cancel" | "retry" | "delete";
 type TaskActionVariables = {
 	taskId: number;
 	action: TaskAction;
+	archivePassword?: string;
 };
 
 async function executeTaskAction({
 	taskId,
 	action,
+	archivePassword,
 }: TaskActionVariables): Promise<Task | undefined> {
 	switch (action) {
 		case "pause":
@@ -172,7 +174,7 @@ async function executeTaskAction({
 		case "cancel":
 			return await taskService.cancelTask(taskId);
 		case "retry":
-			return await taskService.retryTask(taskId);
+			return await taskService.retryTask(taskId, undefined, archivePassword);
 		case "delete":
 			await taskService.deleteTask(taskId);
 			return undefined;

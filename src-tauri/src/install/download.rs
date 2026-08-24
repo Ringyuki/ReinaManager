@@ -434,6 +434,7 @@ mod tests {
             url: "https://example.com/game.zip".to_string(),
             file_name: "game.zip".to_string(),
             archive_format: "zip".to_string(),
+            archive_password: None,
             size,
             checksum_algo: None,
             checksum: None,

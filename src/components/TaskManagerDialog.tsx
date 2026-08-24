@@ -21,11 +21,12 @@ import {
 	LinearProgress,
 	Paper,
 	Stack,
+	TextField,
 	Tooltip,
 	Typography,
 } from "@mui/material";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
-import { type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -36,6 +37,7 @@ import {
 import { snackbar } from "@/providers/snackBar";
 import {
 	fileService,
+	type GameInstallTask,
 	isGameInstallTask,
 	type Task,
 	type TaskStatus,
@@ -69,6 +71,10 @@ const deletableStatuses = new Set<TaskStatus>([
 	"cancelled",
 ]);
 const retryableStatuses = new Set<TaskStatus>(["failed", "cancelled"]);
+const passwordErrorCodes = new Set([
+	"archive_password_required",
+	"archive_password_invalid",
+]);
 
 function canPauseTask(task: Task) {
 	return (
@@ -101,6 +107,14 @@ function canRetryTask(task: Task) {
 
 function canDeleteTask(task: Task) {
 	return deletableStatuses.has(task.status);
+}
+
+function requiresPasswordRetry(task: Task): task is GameInstallTask {
+	return (
+		isGameInstallTask(task) &&
+		task.status === "failed" &&
+		passwordErrorCodes.has(task.error_code ?? "")
+	);
 }
 
 function groupTasksByDate(tasks: Task[]): TaskGroup[] {
@@ -210,13 +224,25 @@ export function TaskManagerDialog({ open, onClose }: TaskManagerDialogProps) {
 	const { i18n, t } = useTranslation();
 	const navigate = useNavigate();
 	const [pendingTaskId, setPendingTaskId] = useState<number | null>(null);
+	const [passwordTask, setPasswordTask] = useState<GameInstallTask | null>(
+		null,
+	);
+	const [archivePassword, setArchivePassword] = useState("");
 	const tasksQuery = useTasks({ enabled: open, pollActive: true });
 	const taskActionMutation = useTaskActions();
 
-	const runTaskAction = async (task: Task, action: TaskAction) => {
+	const runTaskAction = async (
+		task: Task,
+		action: TaskAction,
+		password?: string,
+	) => {
 		setPendingTaskId(task.id);
 		try {
-			await taskActionMutation.mutateAsync({ taskId: task.id, action });
+			await taskActionMutation.mutateAsync({
+				taskId: task.id,
+				action,
+				archivePassword: password,
+			});
 		} finally {
 			setPendingTaskId(null);
 		}
@@ -226,6 +252,36 @@ export function TaskManagerDialog({ open, onClose }: TaskManagerDialogProps) {
 		void runTaskAction(task, action).catch((error) => {
 			snackbar.error(getUserErrorMessage(error, t));
 		});
+	};
+
+	const openPasswordDialog = (task: GameInstallTask) => {
+		setPasswordTask(task);
+		setArchivePassword("");
+	};
+
+	const closePasswordDialog = () => {
+		if (passwordTask && pendingTaskId === passwordTask.id) return;
+		setPasswordTask(null);
+		setArchivePassword("");
+	};
+
+	const handlePasswordRetry = (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		if (!passwordTask || archivePassword.length === 0) return;
+		void runTaskAction(passwordTask, "retry", archivePassword)
+			.then(() => {
+				setPasswordTask(null);
+				setArchivePassword("");
+			})
+			.catch((error) => {
+				snackbar.error(getUserErrorMessage(error, t));
+			});
+	};
+
+	const handleClose = () => {
+		setPasswordTask(null);
+		setArchivePassword("");
+		onClose();
 	};
 
 	const handleOpenFolder = (path: string) => {
@@ -252,7 +308,7 @@ export function TaskManagerDialog({ open, onClose }: TaskManagerDialogProps) {
 	return (
 		<Dialog
 			open={open}
-			onClose={onClose}
+			onClose={handleClose}
 			fullWidth
 			maxWidth="md"
 			PaperProps={{
@@ -431,7 +487,19 @@ export function TaskManagerDialog({ open, onClose }: TaskManagerDialogProps) {
 																		<PlayArrowRoundedIcon fontSize="small" />
 																	</TaskIconButton>
 																) : null}
-																{canRetryTask(task) && !isExpired ? (
+																{requiresPasswordRetry(task) ? (
+																	<TaskIconButton
+																		label={t(
+																			"components.TaskManager.enterPasswordAndRetry",
+																			"输入密码并重试",
+																		)}
+																		color="primary"
+																		disabled={isPending}
+																		onClick={() => openPasswordDialog(task)}
+																	>
+																		<ReplayRoundedIcon fontSize="small" />
+																	</TaskIconButton>
+																) : canRetryTask(task) && !isExpired ? (
 																	<TaskIconButton
 																		label={t(
 																			"components.TaskManager.retry",
@@ -516,10 +584,62 @@ export function TaskManagerDialog({ open, onClose }: TaskManagerDialogProps) {
 				)}
 			</DialogContent>
 			<DialogActions>
-				<Button onClick={onClose}>
+				<Button onClick={handleClose}>
 					{t("components.TaskManager.close", "关闭")}
 				</Button>
 			</DialogActions>
+			<Dialog
+				open={passwordTask !== null}
+				onClose={closePasswordDialog}
+				fullWidth
+				maxWidth="xs"
+			>
+				<Box component="form" onSubmit={handlePasswordRetry}>
+					<DialogTitle>
+						{t("components.TaskManager.passwordDialogTitle", "输入解压密码")}
+					</DialogTitle>
+					<DialogContent>
+						<Typography variant="body2" color="text.secondary" className="mb-4">
+							{t(
+								"components.TaskManager.passwordDialogDescription",
+								"请输入压缩包密码，任务将复用已下载的文件继续安装。",
+							)}
+						</Typography>
+						<TextField
+							autoFocus
+							fullWidth
+							type="password"
+							label={t("components.TaskManager.archivePassword", "解压密码")}
+							value={archivePassword}
+							onChange={(event) => setArchivePassword(event.target.value)}
+							disabled={passwordTask?.id === pendingTaskId}
+							inputProps={{ maxLength: 1024 }}
+						/>
+					</DialogContent>
+					<DialogActions>
+						<Button
+							onClick={closePasswordDialog}
+							disabled={passwordTask?.id === pendingTaskId}
+						>
+							{t("common.cancel", "取消")}
+						</Button>
+						<Button
+							type="submit"
+							variant="contained"
+							disabled={
+								archivePassword.length === 0 ||
+								passwordTask?.id === pendingTaskId
+							}
+						>
+							{passwordTask?.id === pendingTaskId ? (
+								<CircularProgress size={20} />
+							) : (
+								t("components.TaskManager.retryWithPassword", "使用密码重试")
+							)}
+						</Button>
+					</DialogActions>
+				</Box>
+			</Dialog>
 		</Dialog>
 	);
 }

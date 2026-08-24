@@ -15,7 +15,9 @@ use super::{
     },
 };
 use crate::entity::tasks;
-use crate::install::archive::{collapse_single_directory_layers, extract_archive, move_game_root};
+use crate::install::archive::{
+    ArchiveError, collapse_single_directory_layers, extract_archive, move_game_root,
+};
 use sea_orm::DatabaseConnection;
 use std::path::Path;
 use std::sync::OnceLock;
@@ -226,12 +228,31 @@ async fn run_game_install_task(
             let app = app.clone();
             let download_path = download_path.clone();
             let archive_format = request.archive_format.clone();
+            let archive_password = request.archive_password.clone();
             let staging = staging.clone();
-            move || extract_archive(&app, &download_path, &archive_format, &staging)
+            move || {
+                extract_archive(
+                    &app,
+                    &download_path,
+                    &archive_format,
+                    archive_password.as_deref(),
+                    &staging,
+                )
+            }
         })
         .await
         .map_err(|error| TaskFailure::new("extract_task_failed", error.to_string()))?
-        .map_err(|message| TaskFailure::new("extract_failed", message))?;
+        .map_err(|error| match error {
+            ArchiveError::PasswordRequired => TaskFailure::new(
+                "archive_password_required",
+                "压缩包需要密码，请在任务管理器输入密码后重试",
+            ),
+            ArchiveError::InvalidPassword => TaskFailure::new(
+                "archive_password_invalid",
+                "解压密码错误，请在任务管理器修改密码后重试",
+            ),
+            ArchiveError::Other(message) => TaskFailure::new("extract_failed", message),
+        })?;
     }
 
     check_task_control(control)?;

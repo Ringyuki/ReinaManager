@@ -84,6 +84,7 @@ pub async fn retry_task(
     db: State<'_, DatabaseConnection>,
     task_id: i64,
     payload: Option<InstallRequest>,
+    archive_password: Option<String>,
 ) -> Result<tasks::Model, String> {
     let mut task = find_task(db.inner(), task_id).await?;
     if task.task_type != GAME_INSTALL_TASK_TYPE {
@@ -102,10 +103,14 @@ pub async fn retry_task(
     }
 
     let stored_payload = parse_game_install_payload(&task).map_err(|failure| failure.message)?;
-    let request = match payload {
-        Some(request) => request.validate()?,
+    let mut request = match payload {
+        Some(request) => request,
         None => stored_payload.request.clone(),
     };
+    if let Some(archive_password) = archive_password {
+        request.archive_password = Some(archive_password);
+    }
+    let request = request.validate()?;
     let dedupe_key = game_install_dedupe_key(&request);
     if tasks::Entity::find()
         .filter(tasks::Column::Id.ne(task_id))

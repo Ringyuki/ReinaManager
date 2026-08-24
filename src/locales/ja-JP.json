@@ -334,17 +334,22 @@
 			"viewDetails": "詳細を表示"
 		},
 		"TaskManager": {
+			"archivePassword": "展開パスワード",
 			"cancel": "タスクをキャンセル",
 			"close": "閉じる",
 			"delete": "タスクを削除",
 			"empty": "ダウンロードタスクはありません",
+			"enterPasswordAndRetry": "パスワードを入力して再試行",
 			"gameInstallSource": "ゲームインストール · {{provider}} · {{size}}",
 			"goToShionlib": "Shionlibからプッシュ",
 			"installPath": "インストール先：{{path}}",
 			"openFolder": "フォルダを開く",
+			"passwordDialogDescription": "圧縮ファイルのパスワードを入力すると、ダウンロード済みのファイルを使用してインストールを続行します。",
+			"passwordDialogTitle": "展開パスワードを入力",
 			"pause": "一時停止",
 			"resume": "再開",
 			"retry": "再試行",
+			"retryWithPassword": "パスワードで再試行",
 			"title": "ダウンロードタスク"
 		},
 		"Toolbar": {

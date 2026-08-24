@@ -18,6 +18,7 @@ const SUPPORTED_REQUEST_PARAMS: &[&str] = &[
     "url",
     "file_name",
     "archive_format",
+    "archive_password",
     "size",
     "checksum_algo",
     "checksum",
@@ -39,6 +40,7 @@ pub struct InstallRequest {
     pub url: String,
     pub file_name: String,
     pub archive_format: String,
+    pub archive_password: Option<String>,
     pub size: u64,
     pub checksum_algo: Option<String>,
     pub checksum: Option<String>,
@@ -70,6 +72,9 @@ impl InstallRequest {
         validate_file_name(&self.file_name)?;
         if !SUPPORTED_ARCHIVE_FORMATS.contains(&self.archive_format.as_str()) {
             return Err(format!("不支持的压缩格式: {}", self.archive_format));
+        }
+        if let Some(password) = self.archive_password.as_deref() {
+            validate_archive_password(password)?;
         }
         if self.size == 0 || self.size > i64::MAX as u64 {
             return Err("文件大小无效".to_string());
@@ -304,6 +309,7 @@ pub fn parse_install_url(url: Url) -> Result<InstallRequest, String> {
         url: required_param(&params, "url")?.trim().to_string(),
         file_name,
         archive_format: normalize_archive_format(required_param(&params, "archive_format")?),
+        archive_password: optional_param(&params, "archive_password").map(str::to_string),
         size: required_param(&params, "size")?
             .parse::<u64>()
             .map_err(|_| "size 无效".to_string())?,
@@ -374,6 +380,19 @@ fn validate_file_name(value: &str) -> Result<(), String> {
     is_single_name
         .then_some(())
         .ok_or_else(|| "file_name 必须是安全的单个文件名".to_string())
+}
+
+fn validate_archive_password(value: &str) -> Result<(), String> {
+    if value.is_empty() {
+        return Err("archive_password 不能为空".to_string());
+    }
+    if value.len() > 1024 {
+        return Err("archive_password 不能超过 1024 字节".to_string());
+    }
+    if value.contains(['\r', '\n', '\0']) {
+        return Err("archive_password 不能包含换行或 NUL 字符".to_string());
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -518,5 +537,40 @@ mod tests {
 
         let request = parse_install_url(url).unwrap();
         assert_eq!(request.hikarinagi_id.as_deref(), Some("789"));
+    }
+
+    #[test]
+    fn parses_url_encoded_archive_password() {
+        let url = Url::parse(&format!(
+            "reinamanager://install?{}&url=https%3A%2F%2Fexample.com%2Fgame.zip&archive_password=a%26b%20c%2B%25",
+            base_query()
+        ))
+        .unwrap();
+
+        let request = parse_install_url(url).unwrap();
+        assert_eq!(request.archive_password.as_deref(), Some("a&b c+%"));
+    }
+
+    #[test]
+    fn rejects_invalid_archive_password() {
+        for password in ["", "line%0Abreak", "nul%00byte"] {
+            let url = Url::parse(&format!(
+                "reinamanager://install?{}&url=https%3A%2F%2Fexample.com%2Fgame.zip&archive_password={password}",
+                base_query()
+            ))
+            .unwrap();
+            assert!(parse_install_url(url).is_err());
+        }
+
+        let mut request = parse_install_url(
+            Url::parse(&format!(
+                "reinamanager://install?{}&url=https%3A%2F%2Fexample.com%2Fgame.zip",
+                base_query()
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        request.archive_password = Some("密".repeat(342));
+        assert!(request.validate().is_err());
     }
 }

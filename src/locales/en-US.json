@@ -344,17 +344,22 @@
 			"viewDetails": "View Details"
 		},
 		"TaskManager": {
+			"archivePassword": "Archive Password",
 			"cancel": "Cancel Task",
 			"close": "Close",
 			"delete": "Delete Task",
 			"empty": "No download tasks",
+			"enterPasswordAndRetry": "Enter Password and Retry",
 			"gameInstallSource": "Game installation · {{provider}} · {{size}}",
 			"goToShionlib": "Push from Shionlib",
 			"installPath": "Installation Path: {{path}}",
 			"openFolder": "Open Folder",
+			"passwordDialogDescription": "Enter the archive password to continue installation using the downloaded file.",
+			"passwordDialogTitle": "Enter Archive Password",
 			"pause": "Pause",
 			"resume": "Resume",
 			"retry": "Retry",
+			"retryWithPassword": "Retry with Password",
 			"title": "Download Tasks"
 		},
 		"Toolbar": {

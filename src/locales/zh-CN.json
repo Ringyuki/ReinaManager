@@ -334,17 +334,22 @@
 			"viewDetails": "查看详情"
 		},
 		"TaskManager": {
+			"archivePassword": "解压密码",
 			"cancel": "取消任务",
 			"close": "关闭",
 			"delete": "删除任务",
 			"empty": "暂无下载任务",
+			"enterPasswordAndRetry": "输入密码并重试",
 			"gameInstallSource": "游戏安装 · {{provider}} · {{size}}",
 			"goToShionlib": "从书音推送",
 			"installPath": "安装路径：{{path}}",
 			"openFolder": "打开文件夹",
+			"passwordDialogDescription": "请输入压缩包密码，任务将复用已下载的文件继续安装。",
+			"passwordDialogTitle": "输入解压密码",
 			"pause": "暂停",
 			"resume": "继续",
 			"retry": "重试",
+			"retryWithPassword": "使用密码重试",
 			"title": "下载任务"
 		},
 		"Toolbar": {

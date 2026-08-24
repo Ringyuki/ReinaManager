@@ -2,8 +2,9 @@ use crate::install::protocol::validate_safe_relative_path;
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use tauri::Manager;
 use walkdir::WalkDir;
 
@@ -11,15 +12,16 @@ pub fn extract_archive(
     app: &tauri::AppHandle,
     archive_path: &Path,
     archive_format: &str,
+    archive_password: Option<&str>,
     staging: &Path,
-) -> Result<(), String> {
+) -> Result<(), ArchiveError> {
     let seven_zip = resolve_seven_zip(app)?;
     if archive_format.starts_with("tar.") {
         let wrapper = archive_wrapper_directory(staging);
-        let extraction = (|| {
+        let extraction = (|| -> Result<(), ArchiveError> {
             create_clean_directory(&wrapper)?;
-            preflight_archive(&seven_zip, archive_path)?;
-            run_extract(&seven_zip, archive_path, &wrapper)?;
+            preflight_archive(&seven_zip, archive_path, archive_password)?;
+            run_extract(&seven_zip, archive_path, archive_password, &wrapper)?;
             audit_extracted_tree(&wrapper)?;
 
             let files = WalkDir::new(&wrapper)
@@ -30,12 +32,14 @@ pub fn extract_archive(
                 .map(|entry| entry.into_path())
                 .collect::<Vec<_>>();
             if files.len() != 1 {
-                return Err("TAR 压缩变体的外层必须只包含一个 TAR 文件".to_string());
+                return Err(ArchiveError::Other(
+                    "TAR 压缩变体的外层必须只包含一个 TAR 文件".to_string(),
+                ));
             }
 
             create_clean_directory(staging)?;
-            preflight_archive(&seven_zip, &files[0])?;
-            run_extract(&seven_zip, &files[0], staging)
+            preflight_archive(&seven_zip, &files[0], archive_password)?;
+            run_extract(&seven_zip, &files[0], archive_password, staging)
         })();
         let cleanup = remove_scoped_directory(
             wrapper
@@ -47,11 +51,24 @@ pub fn extract_archive(
         cleanup?;
     } else {
         create_clean_directory(staging)?;
-        preflight_archive(&seven_zip, archive_path)?;
-        run_extract(&seven_zip, archive_path, staging)?;
+        preflight_archive(&seven_zip, archive_path, archive_password)?;
+        run_extract(&seven_zip, archive_path, archive_password, staging)?;
     }
 
-    audit_extracted_tree(staging)
+    audit_extracted_tree(staging).map_err(ArchiveError::from)
+}
+
+#[derive(Debug)]
+pub enum ArchiveError {
+    PasswordRequired,
+    InvalidPassword,
+    Other(String),
+}
+
+impl From<String> for ArchiveError {
+    fn from(message: String) -> Self {
+        Self::Other(message)
+    }
 }
 
 pub fn archive_wrapper_directory(staging: &Path) -> PathBuf {
@@ -162,7 +179,11 @@ fn resolve_seven_zip(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-fn preflight_archive(seven_zip: &Path, archive_path: &Path) -> Result<(), String> {
+fn preflight_archive(
+    seven_zip: &Path,
+    archive_path: &Path,
+    archive_password: Option<&str>,
+) -> Result<(), ArchiveError> {
     let output = run_command(
         seven_zip,
         [
@@ -172,8 +193,9 @@ fn preflight_archive(seven_zip: &Path, archive_path: &Path) -> Result<(), String
             OsStr::new("-sccUTF-8"),
             archive_path.as_os_str(),
         ],
+        archive_password,
     )?;
-    ensure_success("读取压缩包目录", &output)?;
+    ensure_success("读取压缩包目录", &output, archive_password.is_some())?;
     let listing =
         String::from_utf8(output.stdout).map_err(|_| "7-Zip 未返回 UTF-8 目录信息".to_string())?;
     let mut entry_count = 0_usize;
@@ -186,31 +208,39 @@ fn preflight_archive(seven_zip: &Path, archive_path: &Path) -> Result<(), String
                 .replace('\\', "/")
                 .to_lowercase();
             if !normalized.is_empty() && !entry_paths.insert(normalized) {
-                return Err("压缩包包含会互相覆盖的重复路径".to_string());
+                return Err(ArchiveError::Other(
+                    "压缩包包含会互相覆盖的重复路径".to_string(),
+                ));
             }
             entry_count += 1;
         }
         if let Some(target) = line.strip_prefix("Symbolic Link =")
             && !target.trim().is_empty()
         {
-            return Err("压缩包包含符号链接，已拒绝解压".to_string());
+            return Err(ArchiveError::Other(
+                "压缩包包含符号链接，已拒绝解压".to_string(),
+            ));
         }
 
         if let Some(target) = line.strip_prefix("Hard Link =")
             && !target.trim().is_empty()
         {
-            return Err("压缩包包含硬链接，已拒绝解压".to_string());
+            return Err(ArchiveError::Other(
+                "压缩包包含硬链接，已拒绝解压".to_string(),
+            ));
         }
 
         if let Some(attributes) = line.strip_prefix("Attributes = ") {
             let attributes = attributes.trim_start();
             if attributes.starts_with('l') || attributes.contains(" Reparse ") {
-                return Err("压缩包包含链接或重解析点，已拒绝解压".to_string());
+                return Err(ArchiveError::Other(
+                    "压缩包包含链接或重解析点，已拒绝解压".to_string(),
+                ));
             }
         }
     }
     if entry_count == 0 {
-        return Err("压缩包为空或无法读取目录".to_string());
+        return Err(ArchiveError::Other("压缩包为空或无法读取目录".to_string()));
     }
     Ok(())
 }
@@ -223,7 +253,12 @@ fn validate_archive_entry(value: &str) -> Result<(), String> {
     validate_safe_relative_path(value).map_err(|_| format!("压缩包包含不安全路径: {value}"))
 }
 
-fn run_extract(seven_zip: &Path, archive_path: &Path, output_dir: &Path) -> Result<(), String> {
+fn run_extract(
+    seven_zip: &Path,
+    archive_path: &Path,
+    archive_password: Option<&str>,
+    output_dir: &Path,
+) -> Result<(), ArchiveError> {
     let output_arg = format!("-o{}", output_dir.display());
     let output = run_command(
         seven_zip,
@@ -237,43 +272,77 @@ fn run_extract(seven_zip: &Path, archive_path: &Path, output_dir: &Path) -> Resu
             OsStr::new(&output_arg),
             archive_path.as_os_str(),
         ],
+        archive_password,
     )?;
-    ensure_success("解压", &output)
+    ensure_success("解压", &output, archive_password.is_some())
 }
 
 fn run_command<'a>(
     executable: &Path,
     args: impl IntoIterator<Item = &'a OsStr>,
+    archive_password: Option<&str>,
 ) -> Result<Output, String> {
     let mut command = Command::new(executable);
     command.args(args);
+    command
+        .env("LC_ALL", "C")
+        .env("LANG", "C")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
         use windows::Win32::System::Threading::CREATE_NO_WINDOW;
         command.creation_flags(CREATE_NO_WINDOW.0);
     }
-    command
-        .output()
-        .map_err(|error| format!("启动内置 7-Zip 失败: {error}"))
+    let mut child = command
+        .spawn()
+        .map_err(|error| format!("启动内置 7-Zip 失败: {error}"))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(archive_password.unwrap_or_default().as_bytes());
+        let _ = stdin.write_all(b"\n");
+    }
+    child
+        .wait_with_output()
+        .map_err(|error| format!("等待内置 7-Zip 结束失败: {error}"))
 }
 
-fn ensure_success(action: &str, output: &Output) -> Result<(), String> {
+fn ensure_success(
+    action: &str,
+    output: &Output,
+    supplied_password: bool,
+) -> Result<(), ArchiveError> {
     if output.status.success() {
         return Ok(());
     }
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
+    if is_password_failure(&stdout, &stderr) {
+        return Err(if supplied_password {
+            ArchiveError::InvalidPassword
+        } else {
+            ArchiveError::PasswordRequired
+        });
+    }
     let detail = stderr
         .lines()
         .chain(stdout.lines())
         .rev()
         .find(|line| !line.trim().is_empty())
         .unwrap_or("未知错误");
-    Err(format!(
+    Err(ArchiveError::Other(format!(
         "7-Zip {action}失败（退出码 {}）: {detail}",
         output.status.code().unwrap_or(-1)
-    ))
+    )))
+}
+
+fn is_password_failure(stdout: &str, stderr: &str) -> bool {
+    let output = format!("{stderr}\n{stdout}").to_ascii_lowercase();
+    output.contains("wrong password")
+        || output.contains("cannot open encrypted archive")
+        || output.contains("can not open encrypted archive")
+        || output.contains("data error in encrypted file")
 }
 
 fn audit_extracted_tree(root: &Path) -> Result<(), String> {
@@ -437,5 +506,21 @@ mod tests {
     fn sanitizes_windows_directory_names() {
         assert_eq!(sanitize_directory_name("A:B?C. ", 1), "A_B_C");
         assert_eq!(sanitize_directory_name("...", 9), "game-9");
+    }
+
+    #[test]
+    fn recognizes_common_seven_zip_password_failures() {
+        assert!(is_password_failure(
+            "Cannot open encrypted archive. Wrong password?",
+            ""
+        ));
+        assert!(is_password_failure(
+            "",
+            "Data Error in encrypted file. Wrong password?"
+        ));
+        assert!(!is_password_failure(
+            "Headers Error",
+            "Unexpected end of data"
+        ));
     }
 }

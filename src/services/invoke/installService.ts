@@ -25,6 +25,7 @@ export interface InstallRequest {
 	url: string;
 	file_name: string;
 	archive_format: string;
+	archive_password?: string | null;
 	size: number;
 	checksum_algo?: "sha256" | "blake3" | null;
 	checksum?: string | null;
@@ -139,10 +140,15 @@ class TaskService extends BaseService {
 		return this.invoke<Task[]>("list_tasks");
 	}
 
-	retryTask(taskId: number, payload?: InstallRequest): Promise<Task> {
+	retryTask(
+		taskId: number,
+		payload?: InstallRequest,
+		archivePassword?: string,
+	): Promise<Task> {
 		return this.invoke<Task>("retry_task", {
 			taskId,
 			payload: payload ?? null,
+			archivePassword: archivePassword ?? null,
 		});
 	}
 
