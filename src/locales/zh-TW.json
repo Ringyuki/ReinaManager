@@ -347,6 +347,7 @@
 			"passwordDialogDescription": "請輸入壓縮檔密碼，任務將重用已下載的檔案繼續安裝。",
 			"passwordDialogTitle": "輸入解壓密碼",
 			"pause": "暫停",
+			"restoringDownload": "正在恢復下載…",
 			"resume": "繼續",
 			"retry": "重試",
 			"retryWithPassword": "使用密碼重試",

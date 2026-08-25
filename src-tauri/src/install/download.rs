@@ -106,7 +106,7 @@ pub(crate) async fn download_file(
             _ = interval.tick() => {
                 let snapshot = handle.snapshot();
                 committed = committed.max(snapshot.downloaded_bytes.min(request.size));
-                let speed = handle.speed_snapshot().bytes_per_second;
+                let speed = handle.speed_snapshot();
                 let persist = committed != last_persisted;
                 if persist {
                     update_task_progress(
@@ -117,7 +117,15 @@ pub(crate) async fn download_file(
                     )
                     .await?;
                 }
-                report_snapshot(app, task.id, request.size, &snapshot, committed, speed)?;
+                report_snapshot(
+                    app,
+                    task.id,
+                    request.size,
+                    &snapshot,
+                    committed,
+                    speed.bytes_per_second,
+                    speed.received_bytes,
+                )?;
                 last_persisted = committed;
                 match snapshot.phase {
                     DownloadPhase::Completed => return finish_download(app, db, task.id, request.size, partial_path).await,
@@ -202,7 +210,16 @@ async fn wait_for_control_completion(
             DownloadPhase::Paused => {
                 update_task_progress(db, task_id, committed as i64, Some(request.size as i64))
                     .await?;
-                report_snapshot(app, task_id, request.size, &snapshot, committed, 0.0)?;
+                let speed = handle.speed_snapshot();
+                report_snapshot(
+                    app,
+                    task_id,
+                    request.size,
+                    &snapshot,
+                    committed,
+                    0.0,
+                    speed.received_bytes,
+                )?;
                 return Err(TaskFailure::new("paused", "任务已暂停"));
             }
             DownloadPhase::Cancelled => {
@@ -239,6 +256,7 @@ fn report_snapshot(
     snapshot: &DownloadSnapshot,
     committed: u64,
     bytes_per_second: f64,
+    received_bytes: u64,
 ) -> Result<(), TaskFailure> {
     if snapshot.content_len != 0 && snapshot.content_len != expected_size {
         return Err(TaskFailure::new(
@@ -256,6 +274,7 @@ fn report_snapshot(
         committed as i64,
         expected_size as i64,
         bytes_per_second,
+        i64::try_from(received_bytes).unwrap_or(i64::MAX),
     );
     Ok(())
 }

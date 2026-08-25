@@ -17,6 +17,111 @@ const activeTaskStatuses = new Set<TaskStatus>([
 	"running",
 	"paused",
 ]);
+const resetDownloadErrorCodes = new Set([
+	"checksum_mismatch",
+	"size_mismatch",
+	"url_expired",
+]);
+const ACTIVE_DOWNLOAD_PROGRESS_RATIO = 0.999;
+
+type MergeTaskOptions = {
+	beginRecovery?: boolean;
+	resetDisplayedProgress?: boolean;
+};
+
+type UpdateTaskOptions = {
+	beginRecovery?: boolean;
+	resetDiscardedDownload?: boolean;
+};
+
+function isActiveDownloadTask(task: Task) {
+	return (
+		activeTaskStatuses.has(task.status) &&
+		task.stage === "downloading" &&
+		task.progress_unit === "bytes"
+	);
+}
+
+function clampDisplayedProgress(
+	task: Task,
+	progress: number,
+	activeDownload = isActiveDownloadTask(task),
+) {
+	const total = task.progress_total;
+	if (total == null || total <= 0) return Math.max(0, progress);
+	const maximum = activeDownload
+		? Math.floor(total * ACTIVE_DOWNLOAD_PROGRESS_RATIO)
+		: total;
+	return Math.min(maximum, Math.max(0, progress));
+}
+
+function mergeTask(
+	cached: Task | undefined,
+	incoming: Task,
+	{
+		beginRecovery = false,
+		resetDisplayedProgress = false,
+	}: MergeTaskOptions = {},
+): Task {
+	const cachedActiveDownload = cached != null && isActiveDownloadTask(cached);
+	const incomingActiveDownload = isActiveDownloadTask(incoming);
+	const incomingActiveStatus = activeTaskStatuses.has(incoming.status);
+	// 较早发起的轮询可能在实时下载事件之后才返回，此时空阶段仍按旧下载状态合并。
+	const incomingMayStillBeDownloading =
+		incoming.stage == null || incoming.stage === "downloading";
+	const mergeCommittedProgress =
+		!resetDisplayedProgress &&
+		cached != null &&
+		activeTaskStatuses.has(cached.status) &&
+		incomingActiveStatus &&
+		incomingMayStillBeDownloading &&
+		(cachedActiveDownload || incomingActiveDownload);
+	const progressCurrent = mergeCommittedProgress
+		? Math.max(cached.progress_current, incoming.progress_current)
+		: incoming.progress_current;
+	const preserveCachedRealtime =
+		cachedActiveDownload && incomingActiveStatus && incoming.stage == null;
+	const keepRealtime = incomingActiveDownload || preserveCachedRealtime;
+	const receivedBytes =
+		!beginRecovery && keepRealtime
+			? (incoming.received_bytes ?? cached?.received_bytes)
+			: undefined;
+	const cachedRunningDownload =
+		cached?.status === "running" && cachedActiveDownload;
+	const incomingRunningDownload =
+		incoming.status === "running" && incomingActiveDownload;
+	const bytesPerSecond = incomingRunningDownload
+		? (incoming.bytes_per_second ??
+			(cachedRunningDownload ? cached.bytes_per_second : undefined))
+		: undefined;
+	const merged = {
+		...incoming,
+		progress_current: progressCurrent,
+		received_bytes: receivedBytes,
+		bytes_per_second: bytesPerSecond,
+	};
+	const previousDisplayed = resetDisplayedProgress
+		? 0
+		: (cached?.displayed_progress ?? cached?.progress_current ?? 0);
+	merged.displayed_progress = clampDisplayedProgress(
+		merged,
+		Math.max(previousDisplayed, progressCurrent, receivedBytes ?? 0),
+		keepRealtime,
+	);
+	const recoveryTarget = beginRecovery
+		? merged.displayed_progress
+		: cached?.recovery_target;
+	const caughtUpProgress = Math.max(progressCurrent, receivedBytes ?? 0);
+	// 恢复期间固定展示水位，等新会话追上后再恢复常规进度与速度文案。
+	merged.recovery_target =
+		!resetDisplayedProgress &&
+		keepRealtime &&
+		recoveryTarget != null &&
+		caughtUpProgress < recoveryTarget
+			? recoveryTarget
+			: undefined;
+	return merged;
+}
 
 export const taskKeys = {
 	all: ["tasks"] as const,
@@ -29,25 +134,15 @@ function tasksQueryOptions() {
 		structuralSharing: (previous, next) => {
 			const previousTasks = previous as Task[] | undefined;
 			const nextTasks = next as Task[];
-			if (!previousTasks) return nextTasks;
+			if (!previousTasks) {
+				return nextTasks.map((task) => mergeTask(undefined, task));
+			}
 			const previousById = new Map(
 				previousTasks.map((task) => [task.id, task]),
 			);
-			return nextTasks.map((task) => {
-				const cached = previousById.get(task.id);
-				const bytesPerSecond =
-					task.bytes_per_second ?? cached?.bytes_per_second;
-				if (
-					task.status !== "running" ||
-					task.stage !== "downloading" ||
-					cached?.status !== "running" ||
-					cached.stage !== "downloading" ||
-					bytesPerSecond == null
-				) {
-					return task;
-				}
-				return { ...task, bytes_per_second: bytesPerSecond };
-			});
+			return nextTasks.map((task) =>
+				mergeTask(previousById.get(task.id), task),
+			);
 		},
 	});
 }
@@ -94,18 +189,33 @@ export function useTaskCache() {
 	const prependTask = useCallback(
 		(task: Task) => {
 			queryClient.setQueryData<Task[]>(taskKeys.all, (current) => {
-				if (!current) return [task];
+				if (!current) return [mergeTask(undefined, task)];
 				return current.some((item) => item.id === task.id)
 					? current
-					: [task, ...current];
+					: [mergeTask(undefined, task), ...current];
 			});
 		},
 		[queryClient],
 	);
 	const updateTask = useCallback(
-		(updated: Task) => {
+		(
+			updated: Task,
+			{
+				beginRecovery = false,
+				resetDiscardedDownload = false,
+			}: UpdateTaskOptions = {},
+		) => {
 			queryClient.setQueryData<Task[]>(taskKeys.all, (current) =>
-				current?.map((task) => (task.id === updated.id ? updated : task)),
+				current?.map((task) => {
+					if (task.id !== updated.id) return task;
+					const resetDisplayedProgress =
+						resetDiscardedDownload &&
+						resetDownloadErrorCodes.has(task.error_code ?? "");
+					return mergeTask(task, updated, {
+						beginRecovery,
+						resetDisplayedProgress,
+					});
+				}),
 			);
 		},
 		[queryClient],
@@ -113,19 +223,19 @@ export function useTaskCache() {
 	const updateTaskProgress = useCallback(
 		(event: TaskProgressEvent) => {
 			queryClient.setQueryData<Task[]>(taskKeys.all, (current) =>
-				current?.map((task) =>
-					task.id === event.task_id
-						? {
-								...task,
-								status: event.status,
-								stage: event.stage,
-								progress_current: event.progress_current,
-								progress_total: event.progress_total,
-								progress_unit: event.progress_unit,
-								bytes_per_second: event.bytes_per_second,
-							}
-						: task,
-				),
+				current?.map((task) => {
+					if (task.id !== event.task_id) return task;
+					return mergeTask(task, {
+						...task,
+						status: event.status,
+						stage: event.stage,
+						progress_current: event.progress_current,
+						progress_total: event.progress_total,
+						progress_unit: event.progress_unit,
+						bytes_per_second: event.bytes_per_second,
+						received_bytes: event.received_bytes,
+					});
+				}),
 			);
 		},
 		[queryClient],
@@ -190,7 +300,10 @@ export function useTaskActions() {
 			if (action === "delete") {
 				removeTask(taskId);
 			} else if (updated) {
-				updateTask(updated);
+				updateTask(updated, {
+					beginRecovery: action === "resume",
+					resetDiscardedDownload: action === "retry",
+				});
 			}
 		},
 	});

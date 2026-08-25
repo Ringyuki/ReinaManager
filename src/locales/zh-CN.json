@@ -347,6 +347,7 @@
 			"passwordDialogDescription": "请输入压缩包密码，任务将复用已下载的文件继续安装。",
 			"passwordDialogTitle": "输入解压密码",
 			"pause": "暂停",
+			"restoringDownload": "正在恢复下载…",
 			"resume": "继续",
 			"retry": "重试",
 			"retryWithPassword": "使用密码重试",

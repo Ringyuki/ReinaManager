@@ -109,6 +109,7 @@ pub(crate) struct TaskProgressEvent {
     pub(crate) progress_total: Option<i64>,
     pub(crate) progress_unit: Option<String>,
     pub(crate) bytes_per_second: Option<f64>,
+    pub(crate) received_bytes: Option<i64>,
 }
 
 #[derive(Clone, Debug, Serialize)]

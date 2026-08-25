@@ -383,6 +383,7 @@ pub(crate) fn emit_progress(
             progress_total,
             progress_unit: progress_unit.map(str::to_string),
             bytes_per_second: None,
+            received_bytes: None,
         },
     );
 }
@@ -393,6 +394,7 @@ pub(crate) fn emit_download_progress(
     progress_current: i64,
     progress_total: i64,
     bytes_per_second: f64,
+    received_bytes: i64,
 ) {
     emit_task_progress(
         app,
@@ -404,6 +406,7 @@ pub(crate) fn emit_download_progress(
             progress_total: Some(progress_total),
             progress_unit: Some("bytes".to_string()),
             bytes_per_second: Some(bytes_per_second),
+            received_bytes: Some(received_bytes),
         },
     );
 }

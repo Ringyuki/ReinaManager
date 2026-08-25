@@ -357,6 +357,7 @@
 			"passwordDialogDescription": "Enter the archive password to continue installation using the downloaded file.",
 			"passwordDialogTitle": "Enter Archive Password",
 			"pause": "Pause",
+			"restoringDownload": "Restoring download…",
 			"resume": "Resume",
 			"retry": "Retry",
 			"retryWithPassword": "Retry with Password",

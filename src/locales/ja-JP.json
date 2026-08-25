@@ -347,6 +347,7 @@
 			"passwordDialogDescription": "圧縮ファイルのパスワードを入力すると、ダウンロード済みのファイルを使用してインストールを続行します。",
 			"passwordDialogTitle": "展開パスワードを入力",
 			"pause": "一時停止",
+			"restoringDownload": "ダウンロードを再開しています…",
 			"resume": "再開",
 			"retry": "再試行",
 			"retryWithPassword": "パスワードで再試行",
