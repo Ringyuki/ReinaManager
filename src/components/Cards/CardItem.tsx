@@ -101,7 +101,8 @@ export const CardItem = memo(
 								alt={displayName}
 								draggable="false"
 								loading="lazy"
-								className="h-full w-full object-cover [filter:saturate(0.92)_contrast(0.98)]"
+								decoding="async"
+								className="h-full w-full object-cover"
 							/>
 							{sortFieldOverlay && (
 								<Box className="pointer-events-none absolute inset-x-0 bottom-0 px-2.5 pt-6 pb-1.5 text-white [background:linear-gradient(to_bottom,transparent_0%,rgba(15,23,32,0.3)_50%,rgba(15,23,32,0.85)_100%)]">
