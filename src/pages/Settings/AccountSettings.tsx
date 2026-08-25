@@ -342,7 +342,7 @@ export const BgmProviderSection = () => {
 									<Typography variant="body2">
 										{t(
 											"pages.Settings.bgmTokenSettings.tokenLogin",
-											"使用 Access Token 登录",
+											"Access Token 登录",
 										)}
 									</Typography>
 								</Stack>
@@ -433,13 +433,16 @@ export const BgmProviderSection = () => {
 					<Stack direction="row" spacing={1} alignItems="center">
 						<SyncIcon fontSize="small" color="action" />
 						<Typography variant="subtitle2" className="font-semibold">
-							{t("pages.Settings.collectionSync.bgmTitle", "Bangumi 收藏同步")}
+							{t(
+								"pages.Settings.collectionSync.bgmTitle",
+								"启用 Bangumi 收藏同步",
+							)}
 						</Typography>
 					</Stack>
 					<Typography variant="caption" color="text.secondary">
 						{t(
 							"pages.Settings.collectionSync.bgmDescription",
-							"添加游戏时自动读取 BGM 状态，修改时实时同步回 BGM。",
+							"添加游戏时尝试读取 BGM 收藏状态，本地修改状态时同步回 BGM。",
 						)}
 					</Typography>
 				</Box>
@@ -674,14 +677,14 @@ export const HikarinagiProviderSection = () => {
 						<Typography variant="subtitle2" className="font-semibold">
 							{t(
 								"pages.Settings.collectionSync.hikarinagiTitle",
-								"Hikarinagi 游玩状态同步",
+								"启用 Hikarinagi 游玩状态同步",
 							)}
 						</Typography>
 					</Stack>
 					<Typography variant="caption" color="text.secondary">
 						{t(
 							"pages.Settings.collectionSync.hikarinagiDescription",
-							"添加游戏时自动读取 Hikarinagi 游玩状态，本地修改状态实时同步。",
+							"添加游戏时尝试读取 Hikarinagi 游玩状态，本地修改状态时同步回 Hikarinagi。",
 						)}
 					</Typography>
 				</Box>
@@ -943,13 +946,16 @@ export const VndbProviderSection = () => {
 					<Stack direction="row" spacing={1} alignItems="center">
 						<SyncIcon fontSize="small" color="action" />
 						<Typography variant="subtitle2" className="font-semibold">
-							{t("pages.Settings.collectionSync.vndbTitle", "VNDB 收藏同步")}
+							{t(
+								"pages.Settings.collectionSync.vndbTitle",
+								"启用 VNDB 收藏同步",
+							)}
 						</Typography>
 					</Stack>
 					<Typography variant="caption" color="text.secondary">
 						{t(
 							"pages.Settings.collectionSync.vndbDescription",
-							"添加游戏时自动读取 VNDB 收藏状态，修改时实时同步回 BGM。",
+							"添加游戏时尝试读取 VNDB 收藏状态，本地修改状态时同步回 VNDB。",
 						)}
 					</Typography>
 				</Box>

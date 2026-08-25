@@ -108,7 +108,7 @@ export const AutoStartSettings = () => {
 				title={t("pages.Settings.silentStartup", "静默启动")}
 				description={t(
 					"pages.Settings.silentStartupDescription",
-					"启动时不显示主窗口，应用将在系统托盘中运行。",
+					"每次启动应用时不显示主窗口，应用将在系统托盘中运行。",
 				)}
 			>
 				<Switch

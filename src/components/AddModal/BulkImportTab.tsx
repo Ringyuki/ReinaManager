@@ -1133,7 +1133,7 @@ const BulkImportTab = ({
 				)}
 				message={t(
 					"components.BulkImportModal.importAsCustomConfirmMessage",
-					"将把已匹配以外的 {{count}} 个项目作为自定义游戏导入，仅保存名称和本地路径，不包含元数据。是否继续？",
+					"将把已匹配以外的 {{count}} 个项目作为自定义游戏导入，仅保存名称和启动信息，不包含元数据。是否继续？",
 					{ count: customImportCount },
 				)}
 				onConfirm={handleImportCustom}

@@ -128,9 +128,7 @@ export function GameSessionCreateDialog({
 							fullWidth
 						/>
 						<FormControl error={submitted && !validDuration}>
-							<FormLabel>
-								{t("pages.Detail.sessionDuration", "游玩时长")}
-							</FormLabel>
+							<FormLabel>{t("pages.Detail.sessionDuration", "时长")}</FormLabel>
 							<div className="mt-2 flex gap-3">
 								<TextField
 									label={t("pages.Detail.sessionDurationHours", "小时")}
