@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import ts from "typescript";
+import * as is from "typescript/unstable/ast/is";
+import { API } from "typescript/unstable/sync";
 
 const projectRoot = process.cwd();
 const sourceRoot = path.join(projectRoot, "src");
+const tsconfigPath = path.join(projectRoot, "tsconfig.app.json");
 const localePath = path.join(projectRoot, "src/locales/zh-CN.json");
 const shouldWriteMissing = process.argv.includes("--write-missing");
 
@@ -53,20 +55,22 @@ function resolveLocaleValue(locale, keyPath, hasCountOption) {
 }
 
 function getStaticText(node) {
-	if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+	if (!node) return undefined;
+	if (is.isStringLiteral(node) || is.isNoSubstitutionTemplateLiteral(node)) {
 		return node.text;
 	}
 	return undefined;
 }
 
 function getPropertyNameText(name) {
-	if (ts.isIdentifier(name) || ts.isStringLiteral(name)) return name.text;
+	if (!name) return undefined;
+	if (is.isIdentifier(name) || is.isStringLiteral(name)) return name.text;
 	return undefined;
 }
 
 function getDefaultValueProperty(objectLiteral) {
 	for (const property of objectLiteral.properties) {
-		if (!ts.isPropertyAssignment(property)) continue;
+		if (!is.isPropertyAssignment(property)) continue;
 		if (getPropertyNameText(property.name) === "defaultValue") {
 			return property.initializer;
 		}
@@ -75,22 +79,22 @@ function getDefaultValueProperty(objectLiteral) {
 }
 
 function hasCountProperty(node) {
-	if (!ts.isObjectLiteralExpression(node)) return false;
+	if (!is.isObjectLiteralExpression(node)) return false;
 	return node.properties.some(
 		(property) =>
-			ts.isPropertyAssignment(property) &&
+			is.isPropertyAssignment(property) &&
 			getPropertyNameText(property.name) === "count",
 	);
 }
 
 function isTranslationCall(node) {
-	if (!ts.isCallExpression(node)) return false;
+	if (!is.isCallExpression(node)) return false;
 
-	if (ts.isIdentifier(node.expression)) {
+	if (is.isIdentifier(node.expression)) {
 		return node.expression.text === "t";
 	}
 
-	if (ts.isPropertyAccessExpression(node.expression)) {
+	if (is.isPropertyAccessExpression(node.expression)) {
 		return node.expression.name.text === "t";
 	}
 
@@ -98,32 +102,25 @@ function isTranslationCall(node) {
 }
 
 function formatLocation(sourceFile, position) {
-	const { line, character } = sourceFile.getLineAndCharacterOfPosition(position);
+	const { line, character } =
+		sourceFile.getLineAndCharacterOfPosition(position);
 	return `${path.relative(projectRoot, sourceFile.fileName)}:${line + 1}:${character + 1}`;
 }
 
-function inspectFile(filePath, locale) {
-	const sourceText = fs.readFileSync(filePath, "utf8");
-	const sourceFile = ts.createSourceFile(
-		filePath,
-		sourceText,
-		ts.ScriptTarget.Latest,
-		true,
-		filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-	);
+function inspectFile(sourceFile, filePath, locale) {
 	const issues = [];
 	const replacements = [];
 
 	function visit(node) {
 		if (!isTranslationCall(node)) {
-			ts.forEachChild(node, visit);
+			node.forEachChild(visit);
 			return;
 		}
 
 		const [keyArg, secondArg, thirdArg] = node.arguments;
 		const key = keyArg ? getStaticText(keyArg) : undefined;
 		if (!key) {
-			ts.forEachChild(node, visit);
+			node.forEachChild(visit);
 			return;
 		}
 
@@ -131,7 +128,7 @@ function inspectFile(filePath, locale) {
 			(secondArg && hasCountProperty(secondArg)) ||
 			(thirdArg && hasCountProperty(thirdArg));
 		const localeValue = resolveLocaleValue(locale, key, hasCountOption);
-		const location = formatLocation(sourceFile, node.getStart(sourceFile));
+		const location = formatLocation(sourceFile, node.getStart());
 
 		if (localeValue === undefined) {
 			issues.push({
@@ -140,7 +137,7 @@ function inspectFile(filePath, locale) {
 				key,
 				message: "locale 中找不到对应 key，跳过默认值检查",
 			});
-			ts.forEachChild(node, visit);
+			node.forEachChild(visit);
 			return;
 		}
 
@@ -153,10 +150,10 @@ function inspectFile(filePath, locale) {
 			});
 			replacements.push({
 				filePath,
-				position: keyArg.end,
+				position: keyArg.getEnd(),
 				text: `, ${JSON.stringify(localeValue)}`,
 			});
-			ts.forEachChild(node, visit);
+			node.forEachChild(visit);
 			return;
 		}
 
@@ -171,11 +168,11 @@ function inspectFile(filePath, locale) {
 					expected: localeValue,
 				});
 			}
-			ts.forEachChild(node, visit);
+			node.forEachChild(visit);
 			return;
 		}
 
-		if (ts.isObjectLiteralExpression(secondArg)) {
+		if (is.isObjectLiteralExpression(secondArg)) {
 			const defaultValueNode = getDefaultValueProperty(secondArg);
 			if (!defaultValueNode) {
 				issues.push({
@@ -186,10 +183,10 @@ function inspectFile(filePath, locale) {
 				});
 				replacements.push({
 					filePath,
-					position: keyArg.end,
+					position: keyArg.getEnd(),
 					text: `, ${JSON.stringify(localeValue)}`,
 				});
-				ts.forEachChild(node, visit);
+				node.forEachChild(visit);
 				return;
 			}
 
@@ -200,9 +197,9 @@ function inspectFile(filePath, locale) {
 					location,
 					key,
 					expected: localeValue,
-					message: defaultValueNode.getText(sourceFile),
+					message: defaultValueNode.getText(),
 				});
-				ts.forEachChild(node, visit);
+				node.forEachChild(visit);
 				return;
 			}
 
@@ -215,7 +212,7 @@ function inspectFile(filePath, locale) {
 					expected: localeValue,
 				});
 			}
-			ts.forEachChild(node, visit);
+			node.forEachChild(visit);
 			return;
 		}
 
@@ -224,10 +221,10 @@ function inspectFile(filePath, locale) {
 			location,
 			key,
 			expected: localeValue,
-			message: secondArg.getText(sourceFile),
+			message: secondArg.getText(),
 		});
 
-		ts.forEachChild(node, visit);
+		node.forEachChild(visit);
 	}
 
 	visit(sourceFile);
@@ -280,9 +277,28 @@ function printIssues(issues) {
 }
 
 const locale = readJson(localePath);
-const results = listSourceFiles(sourceRoot).map((filePath) =>
-	inspectFile(filePath, locale),
-);
+const api = new API();
+const snapshot = api.updateSnapshot({
+	openProjects: [tsconfigPath],
+});
+const project = snapshot.getProjects()[0];
+if (!project) {
+	console.error(`无法加载 TypeScript 项目配置: ${tsconfigPath}`);
+	api.close();
+	process.exit(1);
+}
+
+const sourceFiles = listSourceFiles(sourceRoot);
+const results = sourceFiles.map((filePath) => {
+	const sourceFile = project.program.getSourceFile(filePath);
+	if (!sourceFile) {
+		return { issues: [], replacements: [] };
+	}
+	return inspectFile(sourceFile, filePath, locale);
+});
+
+api.close();
+
 const issues = results.flatMap((result) => result.issues);
 const replacements = results.flatMap((result) => result.replacements);
 
