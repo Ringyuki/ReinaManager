@@ -187,6 +187,9 @@ function TaskProgress({ task }: { task: Task }) {
 		task.bytes_per_second
 			? ` · ${formatFileSize(task.bytes_per_second)}/s`
 			: "";
+	const transferState = isRecovering
+		? ` · ${t("components.TaskManager.restoringDownload", "正在恢复下载…")}`
+		: speed;
 	const color =
 		task.status === "failed"
 			? "error"
@@ -210,13 +213,11 @@ function TaskProgress({ task }: { task: Task }) {
 			/>
 			<Stack direction="row" justifyContent="space-between" className="mt-1">
 				<Typography variant="caption" color="text.secondary">
-					{isRecovering
-						? t("components.TaskManager.restoringDownload", "正在恢复下载…")
-						: task.progress_unit === "bytes" && total
-							? `${formatFileSize(displayedProgress)} / ${formatFileSize(total)}${speed}`
-							: `${displayedProgress}${total ? ` / ${total}` : ""}${
-									task.progress_unit ? ` ${task.progress_unit}` : ""
-								}`}
+					{task.progress_unit === "bytes" && total
+						? `${formatFileSize(displayedProgress)} / ${formatFileSize(total)}${transferState}`
+						: `${displayedProgress}${total ? ` / ${total}` : ""}${
+								task.progress_unit ? ` ${task.progress_unit}` : ""
+							}`}
 				</Typography>
 				{total ? (
 					<Typography variant="caption" color="text.secondary">

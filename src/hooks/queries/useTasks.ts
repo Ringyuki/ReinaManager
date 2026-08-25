@@ -111,13 +111,16 @@ function mergeTask(
 	const recoveryTarget = beginRecovery
 		? merged.displayed_progress
 		: cached?.recovery_target;
-	const caughtUpProgress = Math.max(progressCurrent, receivedBytes ?? 0);
-	// 恢复期间固定展示水位，等新会话追上后再恢复常规进度与速度文案。
+	const receivedBeyondRecoveryTarget =
+		recoveryTarget != null &&
+		receivedBytes != null &&
+		receivedBytes > recoveryTarget;
+	// 必须等新会话的接收量越过旧展示水位，避免 committed 相等时立即退出恢复态。
 	merged.recovery_target =
 		!resetDisplayedProgress &&
 		keepRealtime &&
 		recoveryTarget != null &&
-		caughtUpProgress < recoveryTarget
+		!receivedBeyondRecoveryTarget
 			? recoveryTarget
 			: undefined;
 	return merged;
@@ -134,15 +137,14 @@ function tasksQueryOptions() {
 		structuralSharing: (previous, next) => {
 			const previousTasks = previous as Task[] | undefined;
 			const nextTasks = next as Task[];
-			if (!previousTasks) {
-				return nextTasks.map((task) => mergeTask(undefined, task));
-			}
 			const previousById = new Map(
-				previousTasks.map((task) => [task.id, task]),
+				previousTasks?.map((task) => [task.id, task]) ?? [],
 			);
-			return nextTasks.map((task) =>
-				mergeTask(previousById.get(task.id), task),
-			);
+			return nextTasks.map((task) => {
+				// setQueryData 也会执行 structuralSharing；已合并的前端对象不能再次覆盖瞬时状态。
+				if (task.displayed_progress != null) return task;
+				return mergeTask(previousById.get(task.id), task);
+			});
 		},
 	});
 }
