@@ -19,7 +19,7 @@ use reina_path::get_base_data_dir;
 
 const DEFAULT_COVER_EXTENSION: &str = "jpg";
 const DEFAULT_CLOUD_COVER_FILE_NAME: &str = "cloud_cover";
-const MAX_CONCURRENT_COVER_DOWNLOADS: usize = 100;
+const MAX_CONCURRENT_COVER_DOWNLOADS: usize = 32;
 const BANGUMI_IMAGE_HOST: &str = "lain.bgm.tv";
 const VNDB_IMAGE_HOST: &str = "t.vndb.org";
 const BANGUMI_IMAGE_PROXY_PREFIX: &str = "https://imagesp.yurari.moe/bangumi/";
