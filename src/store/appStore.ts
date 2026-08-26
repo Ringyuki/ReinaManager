@@ -48,14 +48,21 @@ export type SelectedCategory =
 export type DataSourceUpdateMode = "search" | "manualId";
 export type StartupPage = "home" | "libraries" | "collection";
 
+export interface GameFilterSortConfig {
+	gameFilterType: GameType;
+	playStatusFilter: PlayStatusFilter;
+	tagFilters: string[];
+	sortOption: SortOption;
+	sortOrder: SortOrder;
+	showCardSortFieldOverlay: boolean;
+}
+
 const DEFAULT_API_SOURCE: SourceType = "hikarinagi";
 
 /**
  * AppState 全局状态类型定义
  */
 export interface AppState {
-	updateSort(option: SortOption, sortOrder: SortOrder): void;
-
 	// UI 状态
 	selectedGameId: number | null;
 	addModalOpen: boolean;
@@ -67,7 +74,7 @@ export interface AppState {
 	sortOption: SortOption;
 	sortOrder: SortOrder;
 	showCardSortFieldOverlay: boolean;
-	setShowCardSortFieldOverlay: (enabled: boolean) => void;
+	applyGameFilterSort: (config: GameFilterSortConfig) => void;
 
 	// 关闭应用时的提醒设置，skip=不再提醒，行为为 'hide' 或 'close'
 	skipCloseRemind: boolean;
@@ -114,14 +121,9 @@ export interface AppState {
 
 	// 筛选相关
 	gameFilterType: GameType;
-	setGameFilterType: (type: GameType) => void;
 	playStatusFilter: PlayStatusFilter;
-	setPlayStatusFilter: (status: PlayStatusFilter) => void;
 	tagFilters: string[];
 	setTagFilters: (tags: string[]) => void;
-	addTagFilter: (tag: string) => void;
-	removeTagFilter: (tag: string) => void;
-	clearTagFilters: () => void;
 
 	// 数据来源选择
 	apiSource: SourceType;
@@ -383,22 +385,33 @@ export const useStore = create<AppState>()(
 				set({ searchKeyword: keyword });
 			},
 
-			// 排序偏好更新（数据刷新由 React Query 参数驱动）
-			updateSort: (option: SortOption, order: SortOrder) => {
-				const prevOption = get().sortOption;
-				const prevOrder = get().sortOrder;
+			// 原子提交筛选与排序，避免草稿调整产生查询参数中间态
+			applyGameFilterSort: (config: GameFilterSortConfig) => {
+				const normalizedTags = normalizeTagFilters(config.tagFilters);
+				const current = get();
+				if (
+					current.gameFilterType === config.gameFilterType &&
+					current.playStatusFilter === config.playStatusFilter &&
+					current.sortOption === config.sortOption &&
+					current.sortOrder === config.sortOrder &&
+					current.showCardSortFieldOverlay ===
+						config.showCardSortFieldOverlay &&
+					current.tagFilters.length === normalizedTags.length &&
+					current.tagFilters.every(
+						(tag, index) => tag === normalizedTags[index],
+					)
+				) {
+					return;
+				}
 
-				// 如果排序选项和顺序都没变，不做任何操作
-				if (prevOption === option && prevOrder === order) return;
-
-				// 设置排序选项
 				set({
-					sortOption: option,
-					sortOrder: order,
+					gameFilterType: config.gameFilterType,
+					playStatusFilter: config.playStatusFilter,
+					tagFilters: normalizedTags,
+					sortOption: config.sortOption,
+					sortOrder: config.sortOrder,
+					showCardSortFieldOverlay: config.showCardSortFieldOverlay,
 				});
-			},
-			setShowCardSortFieldOverlay: (enabled: boolean) => {
-				set({ showCardSortFieldOverlay: enabled });
 			},
 
 			// UI 操作方法
@@ -406,47 +419,8 @@ export const useStore = create<AppState>()(
 				set({ selectedGameId: id });
 			},
 
-			// 筛选偏好更新（数据刷新由 React Query 参数驱动）
-			setGameFilterType: (type: GameType) => {
-				const prevType = get().gameFilterType;
-
-				// 如果类型没变，不做任何操作
-				if (prevType === type) return;
-
-				// 设置新的筛选类型
-				set({ gameFilterType: type });
-			},
-			setPlayStatusFilter: (status: PlayStatusFilter) => {
-				const prevStatus = get().playStatusFilter;
-
-				if (prevStatus === status) return;
-
-				set({ playStatusFilter: status });
-			},
 			setTagFilters: (tags: string[]) => {
 				set({ tagFilters: normalizeTagFilters(tags) });
-			},
-			addTagFilter: (tag: string) => {
-				const trimmed = tag.trim();
-				if (!trimmed) return;
-				const current = get().tagFilters;
-				if (
-					current.some((item) => item.toLowerCase() === trimmed.toLowerCase())
-				) {
-					return;
-				}
-				set({ tagFilters: [...current, trimmed] });
-			},
-			removeTagFilter: (tag: string) => {
-				const normalized = tag.toLowerCase();
-				set({
-					tagFilters: get().tagFilters.filter(
-						(item) => item.toLowerCase() !== normalized,
-					),
-				});
-			},
-			clearTagFilters: () => {
-				set({ tagFilters: [] });
 			},
 
 			// 更新窗口状态管理
