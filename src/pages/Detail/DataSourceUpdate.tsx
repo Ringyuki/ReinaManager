@@ -121,6 +121,9 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 				setSourceIds((prev) => ({ ...prev, [source]: value })),
 		};
 	});
+	const selectableSources = SEARCHABLE_SOURCE_KEYS.filter((source) =>
+		Boolean(getSourceIdFromDisplay(selectedGame, source)),
+	);
 	const hasEnabledMixedSourceId = sourceInputs.some(
 		({ source, value }) => isMixedSourceEnabled(source) && Boolean(value),
 	);
@@ -262,7 +265,8 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 						label={t("pages.Detail.DataSourceUpdate.dataSource", "数据源")}
 						size="small"
 					>
-						{SEARCHABLE_SOURCE_KEYS.map((source) => {
+						<MenuItem value="mixed">Mixed</MenuItem>
+						{selectableSources.map((source) => {
 							const adapter = getRuntimeSourceAdapter(source);
 							return (
 								<MenuItem key={source} value={source}>
@@ -270,13 +274,16 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 								</MenuItem>
 							);
 						})}
-						<MenuItem value="mixed">Mixed</MenuItem>
-						<MenuItem value="custom" disabled>
-							Custom
-						</MenuItem>
-						<MenuItem value="Whitecloud" disabled>
-							Whitecloud
-						</MenuItem>
+						{idType === "custom" ? (
+							<MenuItem value="custom" disabled>
+								Custom
+							</MenuItem>
+						) : null}
+						{idType === "Whitecloud" ? (
+							<MenuItem value="Whitecloud" disabled>
+								Whitecloud
+							</MenuItem>
+						) : null}
 					</Select>
 				</FormControl>
 				<Button
