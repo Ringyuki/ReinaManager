@@ -1,22 +1,19 @@
 import ContentPasteIcon from "@mui/icons-material/ContentPaste";
 import DeleteIcon from "@mui/icons-material/Delete";
-import FileOpenIcon from "@mui/icons-material/FileOpen";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import SaveIcon from "@mui/icons-material/Save";
 import {
-	Alert,
 	Autocomplete,
 	Box,
 	Button,
 	Card,
 	CardContent,
+	CardHeader,
 	Chip,
 	CircularProgress,
 	FormControlLabel,
-	IconButton,
-	InputAdornment,
 	ListItemIcon,
 	ListItemText,
 	Menu,
@@ -24,18 +21,16 @@ import {
 	Stack,
 	Switch,
 	TextField,
-	ToggleButton,
-	ToggleButtonGroup,
 	Typography,
 } from "@mui/material";
-import { sep } from "@tauri-apps/api/path";
 import { basename } from "pathe";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SmartImage } from "@/components/SmartImage";
 import { REGISTERED_SOURCE_KEYS } from "@/metadata";
+import { getDisplayGameData } from "@/metadata/data/dataTransform";
 import { getSourceDeveloperOptions } from "@/metadata/data/displayMergeRules";
-import { buildGameInfoUpdatePayload } from "@/metadata/data/metadata";
+import { buildGameProfileUpdatePayload } from "@/metadata/data/metadata";
 import {
 	getSourceImageMap,
 	getSourceImageOptions,
@@ -43,10 +38,6 @@ import {
 } from "@/metadata/data/sourceImage";
 import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
-import {
-	handleLaunchFile,
-	splitExecutablePath,
-} from "@/services/fs/fileDialog";
 import {
 	deleteGameCustomCovers,
 	selectImageFile,
@@ -65,45 +56,13 @@ import {
 	getGameDisplayName,
 	getGameNsfwStatus,
 } from "@/utils/game";
-import { formatSteamAppIdWithPath } from "@/utils/steam";
-import {
-	getCoverPreviewUrl,
-	isInvalidExecutableName,
-	stringArraysEqual,
-} from "./gameInfoEditData";
+import { getCoverPreviewUrl, stringArraysEqual } from "./gameInfoEditData";
 import { SourceCoverDialog } from "./SourceCoverDialog";
-import { SteamLaunchAssociationDialog } from "./SteamLaunchAssociationDialog";
 import { useImagePreview } from "./useImagePreview";
-import { useSteamAssociation } from "./useSteamAssociation";
 
-// 公共样式常量
-const CHIP_INPUT_BOX_SX = {
-	display: "flex",
-	flexWrap: "wrap",
-	alignItems: "center",
-	gap: 0.5,
-	p: 1,
-	border: "1px solid",
-	borderColor: "divider",
-	borderRadius: 1,
-	minHeight: "42px",
-	"&:focus-within": {
-		borderWidth: "2px",
-	},
-} as const;
-
-const CHIP_INPUT_STYLE = {
-	border: "none",
-	outline: "none",
-	background: "transparent",
-	flex: 1,
-	minWidth: "120px",
-	fontSize: "14px",
-	padding: "4px",
-	color: "inherit",
-} as const;
-
-const PATH_SEPARATOR = sep();
+function normalizeChipValues(values: readonly string[]): string[] {
+	return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
 
 interface GameInfoEditProps {
 	selectedGame: GameData;
@@ -138,8 +97,6 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	})();
 
 	// 游戏信息编辑相关状态
-	const [localPath, setLocalPath] = useState<string>("");
-	const [executable, setExecutable] = useState<string>("");
 	const [gameNote, setGameNote] = useState<string>("");
 	const [aliases, setAliases] = useState<string[]>([]);
 	const [summary, setSummary] = useState<string>("");
@@ -152,14 +109,6 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		useState<HTMLElement | null>(null);
 	const [sourceCoverDialogOpen, setSourceCoverDialogOpen] = useState(false);
 	const [coverSource, setCoverSource] = useState<SourceType | null>(null);
-	const steam = useSteamAssociation({
-		selectedGame,
-		gameName: gameNote,
-		localPath,
-		executable,
-		onLocalPathChange: setLocalPath,
-		onExecutableChange: setExecutable,
-	});
 
 	// 标签输入的临时状态
 	const [aliasInput, setAliasInput] = useState<string>("");
@@ -210,8 +159,6 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	// 1. 提取初始化函数
 	const initForm = useCallback(
 		(game: GameData) => {
-			setLocalPath(game.localpath ?? "");
-			setExecutable(game.executable ?? "");
 			setGameNote(getGameDisplayName(game));
 			setAliases(game.custom_data?.aliases ?? []);
 			setSummary(game.summary ?? "");
@@ -236,10 +183,6 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		// 2. 只有当这些"静态属性"被保存更新后，才触发重置
 		selectedGameSourceIdSignature,
 		selectedGame.id_type,
-		selectedGame.localpath,
-		selectedGame.executable,
-		selectedGame.launch_type,
-		selectedGame.steam_launch_id,
 		// 3. 对于对象类型，使用 JSON 字符串化进行"值比较"
 		//    否则每次父组件刷新，custom_data 对象引用都会变，导致无限重置
 		JSON.stringify(selectedGame.custom_data),
@@ -273,14 +216,8 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		const originalDeveloper = selectedGame.developer ?? "";
 		const originalNsfw = getGameNsfwStatus(selectedGame) ?? false;
 		const originalDate = selectedGame.date ?? "";
-		const effectiveSteamLaunchId =
-			steam.launchType === "steam" ? steam.steamLaunchId : "";
 
 		return (
-			localPath !== (selectedGame.localpath ?? "") ||
-			executable !== (selectedGame.executable ?? "") ||
-			steam.launchType !== (selectedGame.launch_type ?? "local") ||
-			effectiveSteamLaunchId !== (selectedGame.steam_launch_id ?? "") ||
 			gameNote !== currentCustomName ||
 			selectedImagePath !== null || // 有选择的图片但未保存
 			shouldDeleteImage ||
@@ -292,28 +229,6 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			nsfw !== originalNsfw ||
 			releaseDate !== originalDate
 		);
-	};
-
-	// 选择完整启动文件后，拆分为游戏目录和文件名。
-	const handleSelectExecutable = async () => {
-		try {
-			const selection = await handleLaunchFile(localPath);
-			if (!selection) return;
-			if (selection.launchType === "steam") {
-				steam.actions.openAssociation(selection.target);
-				return;
-			}
-
-			const executablePathParts = await splitExecutablePath(selection.path);
-			if (executablePathParts) {
-				setLocalPath(executablePathParts.localpath);
-				setExecutable(executablePathParts.executable);
-			}
-		} catch (error) {
-			snackbar.error(
-				`${t("pages.Detail.GameInfoEdit.selectExecutableFailed", "选择可执行文件失败")}: ${getUserErrorMessage(error, t)}`,
-			);
-		}
 	};
 
 	const handleImageMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -445,101 +360,9 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		cleanupPreview();
 	};
 
-	// 添加别名
-	const handleAddAlias = () => {
-		const trimmed = aliasInput.trim();
-		if (trimmed && !aliases.includes(trimmed)) {
-			setAliases([...aliases, trimmed]);
-			setAliasInput("");
-		}
-	};
-
-	// 删除别名
-	const handleDeleteAlias = (alias: string) => {
-		setAliases(aliases.filter((a) => a !== alias));
-	};
-
-	// 别名输入键盘事件
-	const handleAliasKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-			e.preventDefault();
-			handleAddAlias();
-		} else if (
-			e.key === "Backspace" &&
-			aliasInput === "" &&
-			aliases.length > 0
-		) {
-			// 退格键删除最后一个标签
-			e.preventDefault();
-			setAliases(aliases.toSpliced(-1));
-		}
-	};
-
-	// 添加标签
-	const handleAddTag = () => {
-		const trimmed = tagInput.trim();
-		if (trimmed && !tags.includes(trimmed)) {
-			setTags([...tags, trimmed]);
-			setTagInput("");
-		}
-	};
-
-	// 删除标签
-	const handleDeleteTag = (tag: string) => {
-		setTags(tags.filter((t) => t !== tag));
-	};
-
-	// 标签输入键盘事件
-	const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-			e.preventDefault();
-			handleAddTag();
-		} else if (e.key === "Backspace" && tagInput === "" && tags.length > 0) {
-			// 退格键删除最后一个标签
-			e.preventDefault();
-			setTags(tags.toSpliced(-1));
-		}
-	};
-
-	// 统一保存所有更改
+	// 保存游戏资料
 	const handleSaveAll = async () => {
 		if (!hasChanges()) return;
-		if (steam.launchType === "steam" && !steam.steamLaunchId.trim()) {
-			snackbar.error(
-				t(
-					"pages.Detail.GameInfoEdit.steamLaunchItemRequired",
-					"请选择 Steam 启动项",
-				),
-			);
-			return;
-		}
-		if (steam.launchType === "steam" && !localPath.trim()) {
-			snackbar.error(
-				t(
-					"pages.Detail.GameInfoEdit.steamMonitorPathRequired",
-					"Steam 启动需要有效的游戏目录用于运行监控",
-				),
-			);
-			return;
-		}
-		if (!localPath.trim() && executable.trim()) {
-			snackbar.error(
-				t(
-					"pages.Detail.GameInfoEdit.localPathRequiredForExecutable",
-					"填写可执行文件时，游戏目录不能为空",
-				),
-			);
-			return;
-		}
-		if (isInvalidExecutableName(executable)) {
-			snackbar.error(
-				t(
-					"pages.Detail.GameInfoEdit.invalidExecutable",
-					"可执行文件必须是单个文件名，不能包含路径分隔符",
-				),
-			);
-			return;
-		}
 
 		const coverSourceChanged = hasSourceCoverChanged();
 		const originalSourceCoverImage = resolveSourceImage(
@@ -568,12 +391,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			}
 
 			// 2. 纯逻辑：使用纯函数构建 Payload
-			const updateData = buildGameInfoUpdatePayload(selectedGame, {
-				newLocalPath: localPath,
-				newExecutable: executable,
-				newLaunchType: steam.launchType,
-				newSteamLaunchId:
-					steam.launchType === "steam" ? steam.steamLaunchId : "",
+			const updateData = buildGameProfileUpdatePayload(selectedGame, {
 				newName: gameNote,
 				newImageExt: uploadedImageExt,
 				newCoverSource: coverSource,
@@ -598,9 +416,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 			// 3. 执行保存
 			const updatedGame = await onSave(updateData);
-			setLocalPath(updatedGame.localpath ?? "");
-			setExecutable(updatedGame.executable ?? "");
-			steam.actions.syncFromGame(updatedGame);
+			initForm(getDisplayGameData(updatedGame));
 
 			if (clipboardTempImagePath) {
 				await cleanupClipboardTempImage();
@@ -638,570 +454,383 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	};
 
 	return (
-		<Box className="flex flex-col gap-3">
-			{/* 封面和基本信息区域 - 放在最上面 */}
-			<Card>
-				<CardContent>
-					<Typography variant="h6" gutterBottom>
-						{t("pages.Detail.GameInfoEdit.coverAndBasicInfo", "封面与基本信息")}
-					</Typography>
-
-					<Stack direction={{ xs: "column", md: "row" }} spacing={3}>
-						{/* 左侧：封面预览和操作 */}
-						<Box className="flex-shrink-0">
-							<SmartImage
-								src={getCurrentCoverUrl()}
-								alt="Game Cover"
-								className="w-70 h-100 object-cover rounded-2 border border-gray-300"
+		<Card className="overflow-visible">
+			<CardHeader
+				className="sticky top-0 z-10 bg-[var(--mui-palette-background-paper)]"
+				title={
+					<Stack
+						direction="row"
+						spacing={1}
+						alignItems="center"
+						useFlexGap
+						flexWrap="wrap"
+					>
+						<Typography variant="h6">
+							{t("pages.Detail.Edit.gameInfoEdit", "游戏资料编辑")}
+						</Typography>
+						{hasChanges() ? (
+							<Chip
+								label={t("pages.Detail.GameInfoEdit.unsavedChanges", "未保存")}
+								color="warning"
+								size="small"
+								variant="outlined"
 							/>
+						) : null}
+					</Stack>
+				}
+				action={
+					<Button
+						variant="contained"
+						className="whitespace-nowrap"
+						onClick={handleSaveAll}
+						disabled={isLoading || disabled || !hasChanges()}
+						startIcon={
+							isLoading ? (
+								<CircularProgress size={20} color="inherit" />
+							) : (
+								<SaveIcon />
+							)
+						}
+					>
+						{isLoading
+							? t("pages.Detail.GameInfoEdit.saving", "保存中...")
+							: t("pages.Detail.GameInfoEdit.saveGameInfo", "保存游戏资料")}
+					</Button>
+				}
+			/>
+			<CardContent>
+				{/* 封面和基本信息区域 - 放在最上面 */}
+				<Stack direction={{ xs: "column", md: "row" }} spacing={3}>
+					{/* 左侧：封面预览和操作 */}
+					<Box className="flex-shrink-0">
+						<SmartImage
+							src={getCurrentCoverUrl()}
+							alt="Game Cover"
+							className="w-70 h-100 object-cover rounded-2 border border-gray-300"
+						/>
 
-							{/* 封面操作按钮 */}
-							<Stack spacing={1} className="mt-2">
-								<Stack direction="row" spacing={1} flexWrap="wrap">
+						{/* 封面操作按钮 */}
+						<Stack spacing={1} className="mt-2">
+							<Stack direction="row" spacing={1} flexWrap="wrap">
+								<Button
+									variant="outlined"
+									onClick={handleImageMenuOpen}
+									startIcon={<PhotoCameraIcon />}
+									endIcon={<KeyboardArrowDownIcon />}
+									disabled={isLoading || disabled}
+									size="small"
+								>
+									{t("pages.Detail.GameInfoEdit.selectImage", "选择图片")}
+								</Button>
+								<Menu
+									anchorEl={imageMenuAnchorEl}
+									open={Boolean(imageMenuAnchorEl)}
+									onClose={handleImageMenuClose}
+								>
+									<MenuItem
+										onClick={handleCustomCoverSelect}
+										disabled={isLoading || disabled}
+									>
+										<ListItemIcon>
+											<PhotoCameraIcon fontSize="small" />
+										</ListItemIcon>
+										<ListItemText>
+											{t(
+												"pages.Detail.GameInfoEdit.selectLocalImage",
+												"本地图片",
+											)}
+										</ListItemText>
+									</MenuItem>
+									<MenuItem
+										onClick={handleClipboardImageImport}
+										disabled={isLoading || disabled}
+									>
+										<ListItemIcon>
+											<ContentPasteIcon fontSize="small" />
+										</ListItemIcon>
+										<ListItemText>
+											{t(
+												"pages.Detail.GameInfoEdit.importFromClipboard",
+												"从剪贴板导入",
+											)}
+										</ListItemText>
+									</MenuItem>
+									<MenuItem
+										onClick={handleSourceCoverDialogOpen}
+										disabled={isLoading || disabled || !canSelectSourceCover}
+									>
+										<ListItemIcon>
+											<ImageSearchIcon fontSize="small" />
+										</ListItemIcon>
+										<ListItemText>
+											{t(
+												"pages.Detail.GameInfoEdit.selectSourceCover",
+												"数据源封面",
+											)}
+										</ListItemText>
+									</MenuItem>
+								</Menu>
+								<SourceCoverDialog
+									open={sourceCoverDialogOpen}
+									options={sourceImageOptions}
+									currentSource={coverSource}
+									hasCustomCover={Boolean(
+										selectedGame.custom_data?.image && !shouldDeleteImage,
+									)}
+									disabled={isLoading || disabled}
+									onClose={handleSourceCoverDialogClose}
+									onSelect={(source) => void handleSourceCoverSelect(source)}
+									onReset={() => void handleSourceCoverReset()}
+								/>
+
+								{selectedGame.custom_data?.image && !shouldDeleteImage && (
 									<Button
 										variant="outlined"
-										onClick={handleImageMenuOpen}
-										startIcon={<PhotoCameraIcon />}
-										endIcon={<KeyboardArrowDownIcon />}
+										onClick={handleRemoveCustomCover}
+										startIcon={<DeleteIcon />}
 										disabled={isLoading || disabled}
+										color="error"
 										size="small"
 									>
-										{t("pages.Detail.GameInfoEdit.selectImage", "选择图片")}
-									</Button>
-									<Menu
-										anchorEl={imageMenuAnchorEl}
-										open={Boolean(imageMenuAnchorEl)}
-										onClose={handleImageMenuClose}
-									>
-										<MenuItem
-											onClick={handleCustomCoverSelect}
-											disabled={isLoading || disabled}
-										>
-											<ListItemIcon>
-												<PhotoCameraIcon fontSize="small" />
-											</ListItemIcon>
-											<ListItemText>
-												{t(
-													"pages.Detail.GameInfoEdit.selectLocalImage",
-													"本地图片",
-												)}
-											</ListItemText>
-										</MenuItem>
-										<MenuItem
-											onClick={handleClipboardImageImport}
-											disabled={isLoading || disabled}
-										>
-											<ListItemIcon>
-												<ContentPasteIcon fontSize="small" />
-											</ListItemIcon>
-											<ListItemText>
-												{t(
-													"pages.Detail.GameInfoEdit.importFromClipboard",
-													"从剪贴板导入",
-												)}
-											</ListItemText>
-										</MenuItem>
-										<MenuItem
-											onClick={handleSourceCoverDialogOpen}
-											disabled={isLoading || disabled || !canSelectSourceCover}
-										>
-											<ListItemIcon>
-												<ImageSearchIcon fontSize="small" />
-											</ListItemIcon>
-											<ListItemText>
-												{t(
-													"pages.Detail.GameInfoEdit.selectSourceCover",
-													"数据源封面",
-												)}
-											</ListItemText>
-										</MenuItem>
-									</Menu>
-									<SourceCoverDialog
-										open={sourceCoverDialogOpen}
-										options={sourceImageOptions}
-										currentSource={coverSource}
-										hasCustomCover={Boolean(
-											selectedGame.custom_data?.image && !shouldDeleteImage,
+										{t(
+											"pages.Detail.GameInfoEdit.removeCustomCover",
+											"移除自定义封面",
 										)}
-										disabled={isLoading || disabled}
-										onClose={handleSourceCoverDialogClose}
-										onSelect={(source) => void handleSourceCoverSelect(source)}
-										onReset={() => void handleSourceCoverReset()}
-									/>
-
-									{selectedGame.custom_data?.image && !shouldDeleteImage && (
-										<Button
-											variant="outlined"
-											onClick={handleRemoveCustomCover}
-											startIcon={<DeleteIcon />}
-											disabled={isLoading || disabled}
-											color="error"
-											size="small"
-										>
-											{t(
-												"pages.Detail.GameInfoEdit.removeCustomCover",
-												"移除自定义封面",
-											)}
-										</Button>
-									)}
-								</Stack>
-								{selectedGame.custom_data?.image &&
-									!shouldDeleteImage &&
-									!selectedImagePath && (
-										<Typography variant="caption" color="textSecondary">
-											{t(
-												"pages.Detail.GameInfoEdit.hasCustomCover",
-												"已设置自定义封面",
-											)}
-											: {selectedGame.custom_data.image}
-										</Typography>
-									)}
-
-								{selectedImagePath && (
-									<Typography variant="caption" color="primary">
-										{selectedImagePath === clipboardTempImagePath
-											? t(
-													"pages.Detail.GameInfoEdit.clipboardPreviewSelected",
-													"已从剪贴板导入图片，保存后生效",
-												)
-											: `${t(
-													"pages.Detail.GameInfoEdit.previewSelected",
-													"已选择新图片，保存后生效",
-												)}: ${basename(selectedImagePath)}`}
-									</Typography>
+									</Button>
 								)}
 							</Stack>
-						</Box>
-
-						{/* 右侧：基本信息 */}
-						<Stack spacing={3} sx={{ flex: 1 }}>
-							{/* 自定义游戏名称 */}
-							<Autocomplete
-								freeSolo
-								openOnFocus
-								clearOnBlur={false}
-								options={[
-									...new Set(
-										[selectedGame.aliases, selectedGame.all_titles]
-											.flat()
-											.filter(Boolean),
-									),
-								]}
-								inputValue={gameNote}
-								onInputChange={(_, value) => setGameNote(value)}
-								onChange={(_, value) => {
-									if (typeof value === "string") {
-										setGameNote(value);
-									}
-								}}
-								filterOptions={(options) => options}
-								disabled={isLoading || disabled}
-								fullWidth
-								renderInput={(params) => (
-									<TextField
-										{...params}
-										label={t(
-											"pages.Detail.GameInfoEdit.customGameName",
-											"自定义游戏名称",
+							{selectedGame.custom_data?.image &&
+								!shouldDeleteImage &&
+								!selectedImagePath && (
+									<Typography variant="caption" color="textSecondary">
+										{t(
+											"pages.Detail.GameInfoEdit.hasCustomCover",
+											"已设置自定义封面",
 										)}
-										variant="outlined"
-										placeholder={getGameDisplayName(selectedGame)}
-									/>
+										: {selectedGame.custom_data.image}
+									</Typography>
 								)}
-							/>
 
-							{/* 别名标签 - 在输入框内显示 */}
-							<Box>
-								<Typography variant="subtitle2" gutterBottom>
-									{t("pages.Detail.GameInfoEdit.aliases", "别名")}
+							{selectedImagePath && (
+								<Typography variant="caption" color="primary">
+									{selectedImagePath === clipboardTempImagePath
+										? t(
+												"pages.Detail.GameInfoEdit.clipboardPreviewSelected",
+												"已从剪贴板导入图片，保存后生效",
+											)
+										: `${t(
+												"pages.Detail.GameInfoEdit.previewSelected",
+												"已选择新图片，保存后生效",
+											)}: ${basename(selectedImagePath)}`}
 								</Typography>
-								<Box
-									sx={{
-										...CHIP_INPUT_BOX_SX,
-										"&:focus-within": {
-											...CHIP_INPUT_BOX_SX["&:focus-within"],
-											borderColor: "primary.main",
-										},
-									}}
-								>
-									{aliases.map((alias) => (
-										<Chip
-											key={alias}
-											label={alias}
-											onDelete={() => handleDeleteAlias(alias)}
-											disabled={isLoading || disabled}
-											color="primary"
-											variant="outlined"
-											size="small"
-										/>
-									))}
-									<input
-										type="text"
-										value={aliasInput}
-										onChange={(e) => setAliasInput(e.target.value)}
-										onKeyDown={handleAliasKeyDown}
-										placeholder={
-											aliases.length === 0
-												? t(
-														"pages.Detail.GameInfoEdit.addAliasPlaceholder",
-														"输入别名后按回车添加，退格键删除",
-													)
-												: ""
-										}
-										disabled={isLoading || disabled}
-										style={CHIP_INPUT_STYLE}
-									/>
-								</Box>
-							</Box>
-
-							{/* 开发商 */}
-							<Autocomplete
-								freeSolo
-								openOnFocus
-								clearOnBlur={false}
-								options={developerOptions}
-								inputValue={developer}
-								onInputChange={(_, value) => setDeveloper(value)}
-								onChange={(_, value) => {
-									if (typeof value === "string") {
-										setDeveloper(value);
-									}
-								}}
-								filterOptions={(options) => options}
-								disabled={isLoading || disabled}
-								fullWidth
-								renderInput={(params) => (
-									<TextField
-										{...params}
-										label={t("pages.Detail.GameInfoEdit.developer", "开发商")}
-										variant="outlined"
-										placeholder={t(
-											"pages.Detail.GameInfoEdit.developerPlaceholder",
-											"多个开发商请使用 / 分隔",
-										)}
-										helperText={t(
-											"pages.Detail.GameInfoEdit.developerHelperText",
-											"例如：开发商A / 开发商B",
-										)}
-									/>
-								)}
-							/>
-
-							{/* 发行日期 */}
-							<TextField
-								label={t("pages.Detail.GameInfoEdit.releaseDate", "发行日期")}
-								variant="outlined"
-								fullWidth
-								type="date"
-								value={releaseDate}
-								onChange={(e) => setReleaseDate(e.target.value)}
-								disabled={isLoading || disabled}
-								InputLabelProps={{ shrink: true }}
-								helperText={t(
-									"pages.Detail.GameInfoEdit.releaseDateHelperText",
-									"游戏的发行日期",
-								)}
-							/>
-
-							{/* NSFW 开关 */}
-							<Box>
-								<FormControlLabel
-									control={
-										<Switch
-											checked={nsfw}
-											onChange={(e) => setNsfw(e.target.checked)}
-											disabled={isLoading || disabled}
-											color="warning"
-										/>
-									}
-									label={t("pages.Detail.GameInfoEdit.nsfw", "NSFW (18+)")}
-								/>
-							</Box>
+							)}
 						</Stack>
-					</Stack>
-				</CardContent>
-			</Card>
+					</Box>
 
-			{/* 简介和标签区域 */}
-			<Card>
-				<CardContent>
-					<Typography variant="h6" gutterBottom>
-						{t("pages.Detail.GameInfoEdit.descriptionAndTags", "简介与标签")}
-					</Typography>
+					{/* 右侧：基本信息 */}
+					<Stack spacing={3} sx={{ flex: 1 }}>
+						{/* 自定义游戏名称 */}
+						<Autocomplete
+							freeSolo
+							openOnFocus
+							clearOnBlur={false}
+							options={[
+								...new Set(
+									[selectedGame.aliases, selectedGame.all_titles]
+										.flat()
+										.filter(Boolean),
+								),
+							]}
+							inputValue={gameNote}
+							onInputChange={(_, value) => setGameNote(value)}
+							onChange={(_, value) => {
+								if (typeof value === "string") {
+									setGameNote(value);
+								}
+							}}
+							filterOptions={(options) => options}
+							disabled={isLoading || disabled}
+							fullWidth
+							renderInput={(params) => (
+								<TextField
+									{...params}
+									label={t(
+										"pages.Detail.GameInfoEdit.customGameName",
+										"自定义游戏名称",
+									)}
+									variant="outlined"
+									placeholder={getGameDisplayName(selectedGame)}
+								/>
+							)}
+						/>
 
-					<Stack spacing={3}>
-						{/* 简介 - 可调整大小 */}
+						{/* 别名 */}
+						<Autocomplete
+							multiple
+							freeSolo
+							options={[]}
+							value={aliases}
+							inputValue={aliasInput}
+							slotProps={{
+								chip: {
+									color: "primary",
+									variant: "outlined",
+								},
+							}}
+							onChange={(_, values) => setAliases(normalizeChipValues(values))}
+							onInputChange={(_, value) => setAliasInput(value)}
+							disabled={isLoading || disabled}
+							fullWidth
+							renderInput={(params) => (
+								<TextField
+									{...params}
+									label={t("pages.Detail.GameInfoEdit.aliases", "别名")}
+									placeholder={
+										aliases.length === 0
+											? t(
+													"pages.Detail.GameInfoEdit.addAliasPlaceholder",
+													"输入别名后按回车添加，退格键删除",
+												)
+											: ""
+									}
+								/>
+							)}
+						/>
+
+						{/* 开发商 */}
+						<Autocomplete
+							freeSolo
+							openOnFocus
+							clearOnBlur={false}
+							options={developerOptions}
+							inputValue={developer}
+							onInputChange={(_, value) => setDeveloper(value)}
+							onChange={(_, value) => {
+								if (typeof value === "string") {
+									setDeveloper(value);
+								}
+							}}
+							filterOptions={(options) => options}
+							disabled={isLoading || disabled}
+							fullWidth
+							renderInput={(params) => (
+								<TextField
+									{...params}
+									label={t("pages.Detail.GameInfoEdit.developer", "开发商")}
+									variant="outlined"
+									placeholder={t(
+										"pages.Detail.GameInfoEdit.developerPlaceholder",
+										"多个开发商请使用 / 分隔",
+									)}
+									helperText={t(
+										"pages.Detail.GameInfoEdit.developerHelperText",
+										"例如：开发商A / 开发商B",
+									)}
+								/>
+							)}
+						/>
+
+						{/* 发行日期 */}
 						<TextField
-							label={t("pages.Detail.GameInfoEdit.summary", "游戏简介")}
+							label={t("pages.Detail.GameInfoEdit.releaseDate", "发行日期")}
 							variant="outlined"
 							fullWidth
-							multiline
-							minRows={4}
-							maxRows={12}
-							value={summary}
-							onChange={(e) => setSummary(e.target.value)}
+							type="date"
+							value={releaseDate}
+							onChange={(e) => setReleaseDate(e.target.value)}
 							disabled={isLoading || disabled}
-							placeholder={t(
-								"pages.Detail.GameInfoEdit.summaryPlaceholder",
-								"请输入游戏简介",
-							)}
+							slotProps={{ inputLabel: { shrink: true } }}
 							helperText={t(
-								"pages.Detail.GameInfoEdit.summaryHelperText",
-								"游戏的详细介绍（可拖动右下角调整大小）",
+								"pages.Detail.GameInfoEdit.releaseDateHelperText",
+								"游戏的发行日期",
 							)}
-							InputProps={{
+						/>
+
+						{/* NSFW 开关 */}
+						<Box>
+							<FormControlLabel
+								control={
+									<Switch
+										checked={nsfw}
+										onChange={(e) => setNsfw(e.target.checked)}
+										disabled={isLoading || disabled}
+										color="warning"
+									/>
+								}
+								label={t("pages.Detail.GameInfoEdit.nsfw", "NSFW (18+)")}
+							/>
+						</Box>
+					</Stack>
+				</Stack>
+
+				{/* 简介和标签区域 */}
+				<Stack spacing={3} className="mt-6">
+					{/* 简介 - 可调整大小 */}
+					<TextField
+						label={t("pages.Detail.GameInfoEdit.summary", "游戏简介")}
+						variant="outlined"
+						fullWidth
+						multiline
+						minRows={4}
+						maxRows={12}
+						value={summary}
+						onChange={(e) => setSummary(e.target.value)}
+						disabled={isLoading || disabled}
+						placeholder={t(
+							"pages.Detail.GameInfoEdit.summaryPlaceholder",
+							"请输入游戏简介",
+						)}
+						helperText={t(
+							"pages.Detail.GameInfoEdit.summaryHelperText",
+							"游戏的详细介绍（可拖动右下角调整大小）",
+						)}
+						slotProps={{
+							input: {
 								sx: {
 									"& textarea": {
 										resize: "vertical",
 										overflow: "auto !important",
 									},
 								},
-							}}
-						/>
+							},
+						}}
+					/>
 
-						{/* 标签 - 在输入框内显示 */}
-						<Box>
-							<Typography variant="subtitle2" gutterBottom>
-								{t("pages.Detail.GameInfoEdit.tags", "标签")}
-							</Typography>
-							<Box
-								sx={{
-									...CHIP_INPUT_BOX_SX,
-									"&:focus-within": {
-										...CHIP_INPUT_BOX_SX["&:focus-within"],
-										borderColor: "primary.main",
-									},
-								}}
-							>
-								{tags.map((tag) => (
-									<Chip
-										key={tag}
-										label={tag}
-										onDelete={() => handleDeleteTag(tag)}
-										disabled={isLoading || disabled}
-										color="primary"
-										variant="outlined"
-										size="small"
-									/>
-								))}
-								<input
-									type="text"
-									value={tagInput}
-									onChange={(e) => setTagInput(e.target.value)}
-									onKeyDown={handleTagKeyDown}
-									placeholder={
-										tags.length === 0
-											? t(
-													"pages.Detail.GameInfoEdit.addTagPlaceholder",
-													"输入标签后按回车添加，退格键删除",
-												)
-											: ""
-									}
-									disabled={isLoading || disabled}
-									style={CHIP_INPUT_STYLE}
-								/>
-							</Box>
-						</Box>
-					</Stack>
-				</CardContent>
-			</Card>
-
-			{/* 启动方式、游戏目录与可执行文件区域 */}
-			<Card>
-				<CardContent>
-					<Typography variant="h6" gutterBottom>
-						{t("pages.Detail.GameInfoEdit.launchSettings", "启动设置")}
-					</Typography>
-					<Stack spacing={2}>
-						<ToggleButtonGroup
-							exclusive
-							value={steam.launchType}
-							onChange={(_, value) =>
-								steam.actions.handleLaunchTypeChange(value)
-							}
-							disabled={isLoading || disabled || steam.dialog.scanning}
-							aria-label={t("pages.Detail.GameInfoEdit.launchType", "启动方式")}
-							size="small"
-							fullWidth
-						>
-							<ToggleButton
-								value="local"
-								aria-label={t(
-									"pages.Detail.GameInfoEdit.localLaunch",
-									"本地程序",
-								)}
-							>
-								{t("pages.Detail.GameInfoEdit.localLaunch", "本地程序")}
-							</ToggleButton>
-							<ToggleButton
-								value="steam"
-								aria-label={t("pages.Detail.GameInfoEdit.steamLaunch", "Steam")}
-							>
-								{steam.dialog.scanning ? (
-									<CircularProgress size={16} />
-								) : (
-									t("pages.Detail.GameInfoEdit.steamLaunch", "Steam")
-								)}
-							</ToggleButton>
-						</ToggleButtonGroup>
-
-						{steam.launchType === "steam" ? (
-							<Stack spacing={1.5}>
-								{steam.steamLaunchId ? (
-									<Box
-										sx={{
-											p: 1.5,
-											border: "1px solid",
-											borderColor: "divider",
-											borderRadius: 1,
-										}}
-									>
-										<Typography fontWeight={600}>
-											{t("pages.Detail.GameInfoEdit.steamGame", "Steam 游戏")}
-										</Typography>
-										<Typography variant="body2" color="text.secondary">
-											{steam.steamTarget?.name ??
-												getGameDisplayName(selectedGame)}
-										</Typography>
-										<Typography variant="caption" color="text.secondary">
-											{formatSteamAppIdWithPath(steam.steamLaunchId, localPath)}
-										</Typography>
-									</Box>
-								) : (
-									<Alert severity="info">
-										{t(
-											"pages.Detail.GameInfoEdit.noSteamAssociation",
-											"尚未关联 Steam 启动项",
-										)}
-									</Alert>
-								)}
-								<Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-									<Button
-										variant="outlined"
-										onClick={() => steam.actions.openAssociation()}
-										disabled={isLoading || disabled}
-									>
-										{steam.steamLaunchId
-											? t(
-													"pages.Detail.GameInfoEdit.changeSteamAssociation",
-													"更换关联",
-												)
-											: t(
-													"pages.Detail.GameInfoEdit.selectFromSteamLibrary",
-													"从 Steam 库选择",
-												)}
-									</Button>
-								</Stack>
-							</Stack>
-						) : null}
-						<Box
-							sx={{
-								display: "flex",
-								alignItems: "flex-start",
-								gap: 1,
-							}}
-						>
+					{/* 标签 */}
+					<Autocomplete
+						multiple
+						freeSolo
+						options={[]}
+						value={tags}
+						inputValue={tagInput}
+						slotProps={{
+							chip: {
+								color: "primary",
+								size: "small",
+								variant: "outlined",
+							},
+						}}
+						onChange={(_, values) => setTags(normalizeChipValues(values))}
+						onInputChange={(_, value) => setTagInput(value)}
+						disabled={isLoading || disabled}
+						fullWidth
+						renderInput={(params) => (
 							<TextField
-								label={t("pages.Detail.GameInfoEdit.localPath", "游戏目录")}
-								variant="outlined"
-								value={localPath}
-								onChange={(e) => setLocalPath(e.target.value)}
-								disabled={isLoading || disabled}
-								error={!localPath.trim() && Boolean(executable.trim())}
-								helperText={
-									!localPath.trim() && executable.trim()
+								{...params}
+								label={t("pages.Detail.GameInfoEdit.tags", "标签")}
+								placeholder={
+									tags.length === 0
 										? t(
-												"pages.Detail.GameInfoEdit.localPathRequiredForExecutable",
-												"填写可执行文件时，游戏目录不能为空",
+												"pages.Detail.GameInfoEdit.addTagPlaceholder",
+												"输入标签后按回车添加，退格键删除",
 											)
-										: undefined
+										: ""
 								}
-								sx={{ flex: 2, minWidth: 0 }}
-								slotProps={{
-									input: {
-										endAdornment: (
-											<InputAdornment position="end">
-												<Typography aria-hidden color="text.secondary">
-													{PATH_SEPARATOR}
-												</Typography>
-											</InputAdornment>
-										),
-									},
-								}}
 							/>
-							<TextField
-								label={t("pages.Detail.GameInfoEdit.executable", "可执行文件")}
-								variant="outlined"
-								value={executable}
-								onChange={(e) => setExecutable(e.target.value)}
-								disabled={isLoading || disabled}
-								error={isInvalidExecutableName(executable)}
-								helperText={
-									isInvalidExecutableName(executable)
-										? t(
-												"pages.Detail.GameInfoEdit.invalidExecutable",
-												"可执行文件必须是单个文件名，不能包含路径分隔符",
-											)
-										: undefined
-								}
-								sx={{ flex: 1, minWidth: "10rem" }}
-								slotProps={{
-									input: {
-										endAdornment: (
-											<InputAdornment position="end">
-												{steam.launchType === "local" ? (
-													<IconButton
-														onClick={handleSelectExecutable}
-														disabled={isLoading || disabled}
-														edge="end"
-														size="small"
-													>
-														<FileOpenIcon />
-													</IconButton>
-												) : null}
-											</InputAdornment>
-										),
-									},
-								}}
-							/>
-						</Box>
-					</Stack>
-				</CardContent>
-			</Card>
-
-			{steam.dialog.open ? (
-				<SteamLaunchAssociationDialog
-					open
-					currentLocalPath={localPath}
-					initialTarget={steam.dialog.initialTarget}
-					initialScanResult={steam.dialog.scanResult}
-					onScanResult={steam.dialog.setScanResult}
-					onClose={steam.actions.closeDialog}
-					onConfirm={steam.actions.confirmAssociation}
-				/>
-			) : null}
-
-			{/* 统一保存按钮 */}
-			<Button
-				variant="contained"
-				color="primary"
-				size="large"
-				fullWidth
-				onClick={handleSaveAll}
-				disabled={isLoading || disabled || !hasChanges()}
-				startIcon={
-					isLoading ? (
-						<CircularProgress size={20} color="inherit" />
-					) : (
-						<SaveIcon />
-					)
-				}
-				className="mt-2"
-			>
-				{isLoading
-					? t("pages.Detail.GameInfoEdit.saving", "保存中...")
-					: t("pages.Detail.GameInfoEdit.saveAllChanges", "保存所有更改")}
-			</Button>
-		</Box>
+						)}
+					/>
+				</Stack>
+			</CardContent>
+		</Card>
 	);
 };

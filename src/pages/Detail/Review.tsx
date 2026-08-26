@@ -22,7 +22,7 @@ import {
 	useVndbCurrentUserProfile,
 } from "@/hooks/queries/useSettings";
 import { useGameStats } from "@/hooks/queries/useStats";
-import { buildGameInfoUpdatePayload } from "@/metadata/data/metadata";
+import { buildGameReviewUpdatePayload } from "@/metadata/data/metadata";
 import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
 import {
@@ -34,7 +34,6 @@ import {
 import type { GameData } from "@/types";
 import { parsePlaytimeInput } from "@/utils/dateTime";
 import { getUserErrorMessage } from "@/utils/errors";
-import { getGameDisplayName } from "@/utils/game";
 
 interface ReviewProps {
 	selectedGame: GameData;
@@ -215,9 +214,7 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 		}
 
 		try {
-			const updates = buildGameInfoUpdatePayload(selectedGame, {
-				newLocalPath: selectedGame.localpath ?? "",
-				newName: getGameDisplayName(selectedGame),
+			const updates = buildGameReviewUpdatePayload(selectedGame, {
 				newUserRating: nextRating.value,
 				newUserReview: reviewInput,
 			});

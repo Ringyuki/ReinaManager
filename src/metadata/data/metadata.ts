@@ -40,11 +40,7 @@ import {
 } from "../sourceRegistry";
 import type { GameMetadataSession } from "./gameMetadataService";
 
-export interface GameInfoUpdateDraft {
-	newLocalPath: string;
-	newExecutable?: string;
-	newLaunchType?: GameLaunchType;
-	newSteamLaunchId?: string;
+export interface GameProfileUpdateDraft {
 	newName: string;
 	newImageExt?: string | null;
 	newCoverSource?: SourceType | null;
@@ -54,6 +50,16 @@ export interface GameInfoUpdateDraft {
 	newDeveloper?: string;
 	newNsfw?: boolean;
 	newDate?: string;
+}
+
+export interface GameLaunchUpdateDraft {
+	newLocalPath: string;
+	newExecutable: string;
+	newLaunchType: GameLaunchType;
+	newSteamLaunchId: string;
+}
+
+export interface GameReviewUpdateDraft {
 	newUserRating?: number | null;
 	newUserReview?: string;
 }
@@ -292,9 +298,9 @@ export function buildMetadataUpdatePayload(
 	return updateData;
 }
 
-export function buildGameInfoUpdatePayload(
+export function buildGameLaunchUpdatePayload(
 	originalGame: GameData,
-	draft: GameInfoUpdateDraft,
+	draft: GameLaunchUpdateDraft,
 ): UpdateGameParams {
 	const payload: UpdateGameParams = {};
 	const localPathDiff = getDiff(draft.newLocalPath, originalGame.localpath);
@@ -325,6 +331,14 @@ export function buildGameInfoUpdatePayload(
 			payload.steam_launch_id = steamLaunchIdDiff;
 		}
 	}
+	return payload;
+}
+
+export function buildGameProfileUpdatePayload(
+	originalGame: GameData,
+	draft: GameProfileUpdateDraft,
+): UpdateGameParams {
+	const payload: UpdateGameParams = {};
 
 	const currentCustomData = originalGame.custom_data || {};
 	const displayName = getGameDisplayName(originalGame);
@@ -395,6 +409,22 @@ export function buildGameInfoUpdatePayload(
 			payload.date = dateDiff;
 		}
 	}
+
+	if (nextCustomData) {
+		payload.custom_data = nextCustomData;
+	}
+
+	return payload;
+}
+
+export function buildGameReviewUpdatePayload(
+	originalGame: GameData,
+	draft: GameReviewUpdateDraft,
+): UpdateGameParams {
+	const payload: UpdateGameParams = {};
+	const currentCustomData = originalGame.custom_data || {};
+	let nextCustomData: CustomData | undefined;
+	const customData = () => (nextCustomData ??= { ...currentCustomData });
 
 	if (draft.newUserRating !== undefined) {
 		const userRatingDiff = getNumberDiff(

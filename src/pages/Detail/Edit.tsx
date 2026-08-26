@@ -4,8 +4,6 @@ import {
 	AccordionDetails,
 	AccordionSummary,
 	Box,
-	Card,
-	CardContent,
 	Stack,
 	Typography,
 } from "@mui/material";
@@ -27,10 +25,10 @@ import type {
 	SourceType,
 	UpdateGameParams,
 } from "@/types";
-import { getUserErrorMessage } from "@/utils/errors";
 import { EMPTY_SOURCE_AVAILABILITY } from "@/utils/game/gameIndex";
 import { DataSourceUpdate } from "./DataSourceUpdate";
 import { GameInfoEdit } from "./game-info/GameInfoEdit";
+import { GameLaunchSettings } from "./game-info/GameLaunchSettings";
 
 /**
  * Edit 组件
@@ -101,17 +99,12 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 
 	// 处理游戏信息保存
 	const handleGameInfoSave = async (data: UpdateGameParams) => {
-		try {
-			const updatedGame = await updateGameMutation.mutateAsync({
-				gameId: id,
-				updates: data,
-			});
-			snackbar.success(t("pages.Detail.Edit.updateSuccess", "游戏信息已更新"));
-			return updatedGame;
-		} catch (error) {
-			snackbar.error(getUserErrorMessage(error, t));
-			throw error; // 重新抛出错误，让子组件知道操作失败
-		}
+		const updatedGame = await updateGameMutation.mutateAsync({
+			gameId: id,
+			updates: data,
+		});
+		snackbar.success(t("pages.Detail.Edit.updateSuccess", "游戏信息已更新"));
+		return updatedGame;
 	};
 
 	return (
@@ -158,18 +151,17 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 				</Accordion>
 
 				{/* 第二部分：游戏资料编辑 */}
-				<Card>
-					<CardContent>
-						<Typography variant="h6" gutterBottom>
-							{t("pages.Detail.Edit.gameInfoEdit", "游戏资料编辑")}
-						</Typography>
-						<GameInfoEdit
-							selectedGame={selectedGame}
-							rawGame={rawGame}
-							onSave={handleGameInfoSave}
-						/>
-					</CardContent>
-				</Card>
+				<GameInfoEdit
+					selectedGame={selectedGame}
+					rawGame={rawGame}
+					onSave={handleGameInfoSave}
+				/>
+
+				{/* 第三部分：启动设置 */}
+				<GameLaunchSettings
+					selectedGame={selectedGame}
+					onSave={handleGameInfoSave}
+				/>
 			</Stack>
 		</Box>
 	);
