@@ -317,19 +317,17 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 
 							{/* 存档路径设置 */}
 							<Typography variant="subtitle2" color="textSecondary">
-								{t("pages.Detail.Backup.savePathSettings", "存档路径设置")}
+								{t("pages.Detail.Backup.savePathSettings", "存档路径")}
 							</Typography>
 
 							<TextField
-								label={t("pages.Detail.Backup.saveDataPath", "存档文件夹路径")}
-								variant="outlined"
 								fullWidth
 								value={saveDataPath}
 								onChange={(e) => setSaveDataPath(e.target.value)}
 								disabled={isSaving}
 								placeholder={t(
 									"pages.Detail.Backup.selectSaveDataFolder",
-									"选择存档文件夹",
+									"请选择例如名为 savedata、userdata、save 的文件夹",
 								)}
 								slotProps={{
 									input: {
