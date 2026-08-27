@@ -263,41 +263,36 @@
 		"PathSettingsModal": {
 			"close": "关闭",
 			"dbBackupPath": {
-				"note": "设置数据库备份文件的保存路径，留空将使用默认路径（AppData/data/backups），或便携模式下的程序目录",
-				"pathLabel": "备份保存路径",
-				"pathPlaceholder": "留空使用默认路径",
+				"note": "设置数据库的备份根目录，留空将使用默认路径",
+				"pathPlaceholder": "数据库将默认备份到这个目录下",
 				"selectBtn": "选择目录",
-				"title": "数据库备份路径"
+				"title": "数据库备份根目录"
 			},
 			"installRootPath": {
 				"note": "书音等来源的一键安装会把游戏解压到此目录",
-				"pathLabel": "游戏安装根目录",
-				"pathPlaceholder": "选择用于安装游戏的目录",
+				"pathPlaceholder": "游戏将默认装在这个目录下",
 				"selectBtn": "选择目录",
-				"title": "一键安装游戏目录"
+				"title": "游戏安装根目录"
 			},
 			"lePath": {
 				"note": "设置LE转区软件的可执行文件路径，用于游戏启动时的转区功能",
-				"pathLabel": "LE转区软件路径",
-				"pathPlaceholder": "选择LE转区软件的可执行文件",
+				"pathPlaceholder": "选择名为 LEProc 的可执行程序",
 				"selectBtn": "选择文件",
 				"title": "LE转区软件路径"
 			},
 			"magpiePath": {
 				"note": "设置Magpie软件的可执行文件路径，用于游戏画面的放大功能",
-				"pathLabel": "Magpie软件路径",
-				"pathPlaceholder": "选择Magpie软件的可执行文件",
+				"pathPlaceholder": "选择名为 Magpie 的可执行程序",
 				"selectBtn": "选择文件",
 				"title": "Magpie软件路径"
 			},
 			"saveError": "保存路径设置失败：{{error}}",
 			"savePath": {
 				"moveBackupWarning": "备份路径已保存，但迁移旧备份失败：{{error}}",
-				"note": "设置游戏存档的备份根目录路径，留空将使用默认路径",
-				"pathLabel": "备份根目录路径",
-				"pathPlaceholder": "留空使用默认路径",
+				"note": "设置游戏存档的备份根目录，留空将使用默认路径",
+				"pathPlaceholder": "游戏存档将默认备份到这个目录下",
 				"selectBtn": "选择目录",
-				"title": "游戏存档备份路径"
+				"title": "游戏存档备份根目录"
 			},
 			"selectFileError": "选择文件失败：{{error}}",
 			"selectFolderError": "选择目录失败：{{error}}",

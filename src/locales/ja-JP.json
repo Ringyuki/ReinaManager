@@ -263,41 +263,36 @@
 		"PathSettingsModal": {
 			"close": "閉じる",
 			"dbBackupPath": {
-				"note": "データベースバックアップファイルの保存パスを設定します。空のままにするとデフォルトパス（AppData/data/backups）、またはポータブルモードのプログラムディレクトリが使用されます",
-				"pathLabel": "バックアップ保存パス",
-				"pathPlaceholder": "空のままにするとデフォルトパスを使用",
+				"note": "データベースバックアップのルートディレクトリを設定します。空のままにするとデフォルトパスが使用されます",
+				"pathPlaceholder": "データベースはデフォルトでこのディレクトリにバックアップされます",
 				"selectBtn": "ディレクトリを選択",
-				"title": "データベースバックアップパス"
+				"title": "データベースバックアップルート"
 			},
 			"installRootPath": {
 				"note": "書音などからのワンクリックインストールは、このディレクトリへゲームを展開します",
-				"pathLabel": "ゲームインストールルート",
-				"pathPlaceholder": "ゲームのインストール先を選択",
+				"pathPlaceholder": "ゲームはデフォルトでこのディレクトリにインストールされます",
 				"selectBtn": "ディレクトリを選択",
-				"title": "ワンクリックインストール先"
+				"title": "ゲームインストールルート"
 			},
 			"lePath": {
 				"note": "ゲーム起動時の地域切り替えに使用するLE地域切り替えソフトウェアの実行ファイルパスを設定します",
-				"pathLabel": "LE地域ソフトウェアパス",
-				"pathPlaceholder": "LE地域ソフトウェアの実行ファイルを選択",
+				"pathPlaceholder": "LEProc という名前の実行ファイルを選択",
 				"selectBtn": "ファイルを選択",
 				"title": "LE地域ソフトウェアパス"
 			},
 			"magpiePath": {
 				"note": "ゲーム画面の拡大機能に使用するMagpieソフトウェアの実行ファイルパスを設定します",
-				"pathLabel": "Magpieソフトウェアパス",
-				"pathPlaceholder": "Magpieソフトウェアの実行ファイルを選択",
+				"pathPlaceholder": "Magpie という名前の実行ファイルを選択",
 				"selectBtn": "ファイルを選択",
 				"title": "Magpieソフトウェアパス"
 			},
 			"saveError": "パス設定の保存に失敗しました：{{error}}",
 			"savePath": {
 				"moveBackupWarning": "バックアップパスは保存されましたが、古いバックアップの移行に失敗しました：{{error}}",
-				"note": "ゲームセーブデータのバックアップルートディレクトリパスを設定します。空のままにするとデフォルトパスが使用されます",
-				"pathLabel": "バックアップルートパス",
-				"pathPlaceholder": "空のままにするとデフォルトパスを使用",
+				"note": "ゲームセーブデータのバックアップルートディレクトリを設定します。空のままにするとデフォルトパスが使用されます",
+				"pathPlaceholder": "ゲームセーブデータはデフォルトでこのディレクトリにバックアップされます",
 				"selectBtn": "ディレクトリを選択",
-				"title": "ゲームセーブバックアップパス"
+				"title": "ゲームセーブバックアップルート"
 			},
 			"selectFileError": "ファイルの選択に失敗しました：{{error}}",
 			"selectFolderError": "ディレクトリの選択に失敗しました：{{error}}",

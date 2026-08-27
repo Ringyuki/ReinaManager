@@ -287,7 +287,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								<InputLabel className="font-semibold mb-4">
 									{t(
 										"components.PathSettingsModal.installRootPath.title",
-										"一键安装游戏目录",
+										"游戏安装根目录",
 									)}
 								</InputLabel>
 								<Typography
@@ -301,10 +301,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									)}
 								</Typography>
 								<TextField
-									label={t(
-										"components.PathSettingsModal.installRootPath.pathLabel",
-										"游戏安装根目录",
-									)}
 									variant="outlined"
 									value={draft.installRootPath}
 									onChange={(event) =>
@@ -318,7 +314,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									className="mb-2"
 									placeholder={t(
 										"components.PathSettingsModal.installRootPath.pathPlaceholder",
-										"选择用于安装游戏的目录",
+										"游戏将默认装在这个目录下",
 									)}
 									disabled={isLoading}
 									size="small"
@@ -354,7 +350,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								<InputLabel className="font-semibold mb-4">
 									{t(
 										"components.PathSettingsModal.savePath.title",
-										"游戏存档备份路径",
+										"游戏存档备份根目录",
 									)}
 								</InputLabel>
 								<Typography
@@ -364,14 +360,10 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								>
 									{t(
 										"components.PathSettingsModal.savePath.note",
-										"设置游戏存档的备份根目录路径，留空将使用默认路径",
+										"设置游戏存档的备份根目录，留空将使用默认路径",
 									)}
 								</Typography>
 								<TextField
-									label={t(
-										"components.PathSettingsModal.savePath.pathLabel",
-										"备份根目录路径",
-									)}
 									variant="outlined"
 									value={draft.savePath}
 									onChange={(e) => updateDraft("savePath", e.target.value)}
@@ -381,7 +373,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									className="mb-2"
 									placeholder={t(
 										"components.PathSettingsModal.savePath.pathPlaceholder",
-										"留空使用默认路径",
+										"游戏存档将默认备份到这个目录下",
 									)}
 									disabled={isLoading}
 									size="small"
@@ -415,7 +407,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								<InputLabel className="font-semibold mb-4">
 									{t(
 										"components.PathSettingsModal.dbBackupPath.title",
-										"数据库备份路径",
+										"数据库备份根目录",
 									)}
 								</InputLabel>
 								<Typography
@@ -425,14 +417,10 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								>
 									{t(
 										"components.PathSettingsModal.dbBackupPath.note",
-										"设置数据库备份文件的保存路径，留空将使用默认路径（AppData/data/backups），或便携模式下的程序目录",
+										"设置数据库的备份根目录，留空将使用默认路径",
 									)}
 								</Typography>
 								<TextField
-									label={t(
-										"components.PathSettingsModal.dbBackupPath.pathLabel",
-										"备份保存路径",
-									)}
 									variant="outlined"
 									value={draft.dbBackupPath}
 									onChange={(e) => updateDraft("dbBackupPath", e.target.value)}
@@ -444,7 +432,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									className="mb-2"
 									placeholder={t(
 										"components.PathSettingsModal.dbBackupPath.pathPlaceholder",
-										"留空使用默认路径",
+										"数据库将默认备份到这个目录下",
 									)}
 									disabled={isLoading}
 									size="small"
@@ -491,10 +479,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 							)}
 						</Typography>
 						<TextField
-							label={t(
-								"components.PathSettingsModal.lePath.pathLabel",
-								"LE转区软件路径",
-							)}
 							variant="outlined"
 							value={draft.lePath}
 							onChange={(e) => updateDraft("lePath", e.target.value)}
@@ -504,7 +488,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 							className="mb-2"
 							placeholder={t(
 								"components.PathSettingsModal.lePath.pathPlaceholder",
-								"选择LE转区软件的可执行文件",
+								"选择名为 LEProc 的可执行程序",
 							)}
 							disabled={isLoading}
 							size="small"
@@ -552,10 +536,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 							)}
 						</Typography>
 						<TextField
-							label={t(
-								"components.PathSettingsModal.magpiePath.pathLabel",
-								"Magpie软件路径",
-							)}
 							variant="outlined"
 							value={draft.magpiePath}
 							onChange={(e) => updateDraft("magpiePath", e.target.value)}
@@ -565,7 +545,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 							className="mb-2"
 							placeholder={t(
 								"components.PathSettingsModal.magpiePath.pathPlaceholder",
-								"选择Magpie软件的可执行文件",
+								"选择名为 Magpie 的可执行程序",
 							)}
 							disabled={isLoading}
 							size="small"

@@ -263,41 +263,36 @@
 		"PathSettingsModal": {
 			"close": "關閉",
 			"dbBackupPath": {
-				"note": "設置數據庫備份文件的保存路徑，留空將使用默認路徑（AppData/data/backups），或攜帶式模式下的程式目錄",
-				"pathLabel": "備份保存路徑",
-				"pathPlaceholder": "留空使用默認路徑",
+				"note": "設置資料庫的備份根目錄，留空將使用預設路徑",
+				"pathPlaceholder": "資料庫將預設備份至此目錄下",
 				"selectBtn": "選擇目錄",
-				"title": "數據庫備份路徑"
+				"title": "資料庫備份根目錄"
 			},
 			"installRootPath": {
 				"note": "書音等來源的一鍵安裝會把遊戲解壓縮到此目錄",
-				"pathLabel": "遊戲安裝根目錄",
-				"pathPlaceholder": "選擇用於安裝遊戲的目錄",
+				"pathPlaceholder": "遊戲將預設安裝在此目錄下",
 				"selectBtn": "選擇目錄",
-				"title": "一鍵安裝遊戲目錄"
+				"title": "遊戲安裝根目錄"
 			},
 			"lePath": {
 				"note": "設置LE轉區軟體的可執行文件路徑，用於遊戲啟動時的轉區功能",
-				"pathLabel": "LE轉區軟體路徑",
-				"pathPlaceholder": "選擇LE轉區軟體的可執行文件",
+				"pathPlaceholder": "選擇名為 LEProc 的可執行程式",
 				"selectBtn": "選擇文件",
 				"title": "LE轉區軟體路徑"
 			},
 			"magpiePath": {
 				"note": "設置Magpie軟體的可執行文件路徑，用於遊戲畫面的放大功能",
-				"pathLabel": "Magpie軟體路徑",
-				"pathPlaceholder": "選擇Magpie軟體的可執行文件",
+				"pathPlaceholder": "選擇名為 Magpie 的可執行程式",
 				"selectBtn": "選擇文件",
 				"title": "Magpie軟體路徑"
 			},
 			"saveError": "儲存路徑設定失敗：{{error}}",
 			"savePath": {
 				"moveBackupWarning": "備份路徑已儲存，但遷移舊備份失敗：{{error}}",
-				"note": "設置遊戲存檔的備份根目錄路徑，留空將使用默認路徑",
-				"pathLabel": "備份根目錄路徑",
-				"pathPlaceholder": "留空使用默認路徑",
+				"note": "設置遊戲存檔的備份根目錄，留空將使用預設路徑",
+				"pathPlaceholder": "遊戲存檔將預設備份至此目錄下",
 				"selectBtn": "選擇目錄",
-				"title": "遊戲存檔備份路徑"
+				"title": "遊戲存檔備份根目錄"
 			},
 			"selectFileError": "選擇文件失敗：{{error}}",
 			"selectFolderError": "選擇目錄失敗：{{error}}",
