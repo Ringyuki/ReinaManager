@@ -163,6 +163,12 @@ const EXCLUDED_EXE_PATTERNS: &[&str] = &[
     "bugreport",
     "bug_report",
     "unitycrashandler",
+    "注册表",
+    "注冊表",
+    "存档目录",
+    "存檔目錄",
+    "解锁程序",
+    "解鎖程序",
 ];
 
 pub(crate) fn trim_dirname_to_search_name(dir_name: &str) -> String {
@@ -586,11 +592,11 @@ fn scan_executable_games_blocking(
 #[cfg(test)]
 mod tests {
     use super::{
-        ImportPathIndex, scan_direct_child_directories, scan_executable_games_blocking,
-        sort_executables, trim_dirname_to_search_name,
+        ImportPathIndex, is_excluded_exe, scan_direct_child_directories,
+        scan_executable_games_blocking, sort_executables, trim_dirname_to_search_name,
     };
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn test_path(parts: &[&str]) -> PathBuf {
@@ -738,5 +744,18 @@ mod tests {
         assert!(results[1].executables.is_empty());
 
         fs::remove_dir_all(root).expect("应能清理测试目录");
+    }
+
+    #[test]
+    fn excluded_exe_patterns_filter_unwanted_files() {
+        assert!(is_excluded_exe(Path::new("打开存档目录.bat")));
+        assert!(is_excluded_exe(Path::new("打開存檔目錄.cmd")));
+        assert!(is_excluded_exe(Path::new("注册表导入.exe")));
+        assert!(is_excluded_exe(Path::new("注冊表修復.exe")));
+        assert!(is_excluded_exe(Path::new("全CG解锁程序.exe")));
+        assert!(is_excluded_exe(Path::new("全CG解鎖程序.exe")));
+        assert!(is_excluded_exe(Path::new("unins000.exe")));
+        assert!(!is_excluded_exe(Path::new("Game.exe")));
+        assert!(!is_excluded_exe(Path::new("Start.bat")));
     }
 }
