@@ -22,7 +22,7 @@ import {
 	StartupPageSettings,
 } from "./GeneralSettings";
 import { DatabaseBackupSettings } from "./MaintenanceSettings";
-import { SettingsDivider, SettingsGroup, SettingsItem } from "./SettingsLayout";
+import { SettingsDivider, SettingsGroup } from "./SettingsLayout";
 import {
 	AutoStartSettings,
 	CloseBtnSettings,
@@ -173,26 +173,18 @@ export const Settings: React.FC = () => {
 					<>
 						<SettingsGroup
 							title={t("pages.Settings.pathSettings.title", "路径设置")}
+							description={t(
+								"pages.Settings.pathSettings.note",
+								"配置游戏存档备份、数据库备份、LE转区软件、Magpie软件等路径",
+							)}
 						>
-							<SettingsItem
-								stacked
-								title={t(
-									"pages.Settings.pathSettings.openModal",
-									"打开路径设置",
-								)}
-								description={t(
-									"pages.Settings.pathSettings.note",
-									"配置游戏存档备份、数据库备份、LE转区软件、Magpie软件等路径",
-								)}
+							<Button
+								variant="outlined"
+								onClick={() => setPathSettingsModalOpen(true)}
+								className="px-4 py-2"
 							>
-								<Button
-									variant="outlined"
-									onClick={() => setPathSettingsModalOpen(true)}
-									className="px-4 py-2"
-								>
-									{t("pages.Settings.pathSettings.openModal", "打开路径设置")}
-								</Button>
-							</SettingsItem>
+								{t("pages.Settings.pathSettings.openModal", "打开路径设置")}
+							</Button>
 						</SettingsGroup>
 						<SettingsDivider />
 						<DatabaseBackupSettings />
