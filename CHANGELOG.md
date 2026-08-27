@@ -1,3 +1,73 @@
+## [0.29.1](https://github.com/huoshen80/ReinaManager/compare/v0.29.0...v0.29.1) (2026-08-27)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- *(scripts)* 适配 checkI18nDefaults 至 TypeScript 7 ([252b230](https://github.com/huoshen80/ReinaManager/commit/252b230f2d0e57cae443b05103fe4da218806b6e))
+
+### ✨ 新功能
+
+- *(scan)* 排除注册表、解锁程序和存档文件夹脚本 ([8b42b62](https://github.com/huoshen80/ReinaManager/commit/8b42b62a28177ffa59d6f4d6dad20d87d3dcb003))
+
+### 🎨 样式
+
+- *(savedata)* 更新存档路径占位符 ([a447d1f](https://github.com/huoshen80/ReinaManager/commit/a447d1fc3f2ec21b52b307e16aeb1d2e8f0f9842))
+- *(settings)* 优化路径设置文案与标签 ([2936eb4](https://github.com/huoshen80/ReinaManager/commit/2936eb461469f6bdc55bea4df8a4296af0d079c1))
+
+### 🐛 Bug 修复
+
+- *(i18n)* 对齐默认回退文本与语言包资源 ([d180403](https://github.com/huoshen80/ReinaManager/commit/d180403c8aed4f055ae66b66aa5483dd0d9bfa4b))
+- *(install)* 修复下载断点续传状态和任务查询缓存 ([c5e95bf](https://github.com/huoshen80/ReinaManager/commit/c5e95bf23fd9fb0885af3b35613e407d3d816acc))
+- *(detail)* 根据已绑定 ID 过滤来源选项 ([cc6025b](https://github.com/huoshen80/ReinaManager/commit/cc6025b8fdddfdc2cafc6e790a76a3817bb81714))
+
+### 🚀 性能优化
+
+- *(cover)* 降低封面最大并发下载数 ([8a29168](https://github.com/huoshen80/ReinaManager/commit/8a2916840d2f53c798b3130bd1dc16d75ba34c05))
+- *(ui)* 优化卡片封面图片渲染 ([4139895](https://github.com/huoshen80/ReinaManager/commit/4139895491c38473c58ed815a08fd00bcfa58ea0))
+- *(install)* 优化任务进度追踪与断点续传 ([ba23660](https://github.com/huoshen80/ReinaManager/commit/ba23660c2444b7b1defb733a152c085ffaf33f88))
+
+### 🚜 重构
+
+- *(filter)* 原子化应用筛选和排序 ([0372d86](https://github.com/huoshen80/ReinaManager/commit/0372d8682cd9d751a300736ed831e11b4cf55ada))
+- *(detail)* 拆分编辑与启动设置 ([6c13bb6](https://github.com/huoshen80/ReinaManager/commit/6c13bb6746358edb917e74fa7d60356f3914a6a0))
+- *(settings)* 简化路径设置操作项布局 ([0ee2161](https://github.com/huoshen80/ReinaManager/commit/0ee21612a25ee41d477312f0aee04159593000b8))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- *(scripts)* Adapt checkI18nDefaults to typescript 7 ([252b230](https://github.com/huoshen80/ReinaManager/commit/252b230f2d0e57cae443b05103fe4da218806b6e))
+
+### ✨ Features
+
+- *(scan)* Exclude registry, unlocker, and save folder scripts ([8b42b62](https://github.com/huoshen80/ReinaManager/commit/8b42b62a28177ffa59d6f4d6dad20d87d3dcb003))
+
+### 🎨 Styling
+
+- *(savedata)* Update save path placeholder ([a447d1f](https://github.com/huoshen80/ReinaManager/commit/a447d1fc3f2ec21b52b307e16aeb1d2e8f0f9842))
+- *(settings)* Refine path settings texts and labels ([2936eb4](https://github.com/huoshen80/ReinaManager/commit/2936eb461469f6bdc55bea4df8a4296af0d079c1))
+
+### 🐛 Bug Fixes
+
+- *(i18n)* Align default fallback text with locale resources ([d180403](https://github.com/huoshen80/ReinaManager/commit/d180403c8aed4f055ae66b66aa5483dd0d9bfa4b))
+- *(install)* Fix download resumption state and task query caching ([c5e95bf](https://github.com/huoshen80/ReinaManager/commit/c5e95bf23fd9fb0885af3b35613e407d3d816acc))
+- *(detail)* Filter source options by bound IDs ([cc6025b](https://github.com/huoshen80/ReinaManager/commit/cc6025b8fdddfdc2cafc6e790a76a3817bb81714))
+
+### 🚀 Performance
+
+- *(cover)* Reduce max concurrent cover downloads ([8a29168](https://github.com/huoshen80/ReinaManager/commit/8a2916840d2f53c798b3130bd1dc16d75ba34c05))
+- *(ui)* Optimize card cover image rendering ([4139895](https://github.com/huoshen80/ReinaManager/commit/4139895491c38473c58ed815a08fd00bcfa58ea0))
+- *(install)* Optimize task progress tracking and download resumption ([ba23660](https://github.com/huoshen80/ReinaManager/commit/ba23660c2444b7b1defb733a152c085ffaf33f88))
+
+### 🚜 Refactor
+
+- *(filter)* Apply filter and sort atomically ([0372d86](https://github.com/huoshen80/ReinaManager/commit/0372d8682cd9d751a300736ed831e11b4cf55ada))
+- *(detail)* Split edit and launch settings ([6c13bb6](https://github.com/huoshen80/ReinaManager/commit/6c13bb6746358edb917e74fa7d60356f3914a6a0))
+- *(settings)* Simplify path settings action layout ([0ee2161](https://github.com/huoshen80/ReinaManager/commit/0ee21612a25ee41d477312f0aee04159593000b8))
+
+
 ## [0.29.0](https://github.com/huoshen80/ReinaManager/compare/v0.28.2...v0.29.0) (2026-08-24)
 
 <details>
