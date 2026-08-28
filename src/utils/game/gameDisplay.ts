@@ -56,6 +56,22 @@ export function getVisibleGameCover(
 		: getGameCover(game);
 }
 
+export function getVisibleGameCoverKey(
+	game: GameData,
+	replaceNsfwCover: boolean,
+): string {
+	if (replaceNsfwCover && getGameNsfwStatus(game)) {
+		return "nsfw";
+	}
+	if (game.custom_data?.image) {
+		return `custom:${game.id}:${game.custom_data.image}`;
+	}
+	if (game.image) {
+		return `cloud:${game.id}:${game.image}`;
+	}
+	return "default";
+}
+
 export const getGameNsfwStatus = (game: GameData): boolean => {
 	return game.nsfw ?? isNsfwGame(game.tags || []);
 };

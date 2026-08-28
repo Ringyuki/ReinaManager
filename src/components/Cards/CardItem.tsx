@@ -8,11 +8,35 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { forwardRef, memo } from "react";
 import { useStore } from "@/store/appStore";
-import { getVisibleGameCover } from "@/utils/game";
+import { getVisibleGameCover, getVisibleGameCoverKey } from "@/utils/game";
 import type { CardItemProps } from "./types";
 import { useCardInteraction } from "./useCardInteraction";
 
 const noop = () => {};
+
+interface CardCoverImageProps {
+	src: string;
+	coverKey: string;
+	alt: string;
+}
+
+const CardCoverImage = memo(
+	({ src, alt }: CardCoverImageProps) => (
+		<Box
+			component="img"
+			src={src}
+			alt={alt}
+			draggable="false"
+			loading="lazy"
+			decoding="async"
+			className="h-full w-full object-cover"
+		/>
+	),
+	(previous, next) =>
+		previous.coverKey === next.coverKey && previous.alt === next.alt,
+);
+
+CardCoverImage.displayName = "CardCoverImage";
 
 /**
  * CardItem - 游戏卡片组件
@@ -42,8 +66,8 @@ export const CardItem = memo(
 				onDoubleClick: interaction?.onDoubleClick ?? noop,
 				useDelayedClick: interaction?.useDelayedClick ?? false,
 			});
-
 			const coverImage = getVisibleGameCover(game, nsfwCoverReplace);
+			const coverKey = getVisibleGameCoverKey(game, nsfwCoverReplace);
 
 			return (
 				<Card
@@ -95,14 +119,10 @@ export const CardItem = memo(
 						`}
 					>
 						<Box className="relative aspect-[3/4] overflow-hidden">
-							<Box
-								component="img"
+							<CardCoverImage
 								src={coverImage}
+								coverKey={coverKey}
 								alt={displayName}
-								draggable="false"
-								loading="lazy"
-								decoding="async"
-								className="h-full w-full object-cover"
 							/>
 							{sortFieldOverlay && (
 								<Box className="pointer-events-none absolute inset-x-0 bottom-0 px-2.5 pt-6 pb-1.5 text-white [background:linear-gradient(to_bottom,transparent_0%,rgba(15,23,32,0.3)_50%,rgba(15,23,32,0.85)_100%)]">
