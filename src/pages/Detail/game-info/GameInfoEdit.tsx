@@ -24,12 +24,22 @@ import {
 	Typography,
 } from "@mui/material";
 import { basename } from "pathe";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { SmartImage } from "@/components/SmartImage";
 import { REGISTERED_SOURCE_KEYS } from "@/metadata";
 import { getDisplayGameData } from "@/metadata/data/dataTransform";
-import { getSourceDeveloperOptions } from "@/metadata/data/displayMergeRules";
+import {
+	getSourceDeveloperOptions,
+	getSourceSummaryOptions,
+} from "@/metadata/data/displayMergeRules";
 import { buildGameProfileUpdatePayload } from "@/metadata/data/metadata";
 import {
 	getSourceImageMap,
@@ -58,6 +68,7 @@ import {
 } from "@/utils/game";
 import { getCoverPreviewUrl, stringArraysEqual } from "./gameInfoEditData";
 import { SourceCoverDialog } from "./SourceCoverDialog";
+import { SourceSummarySelector } from "./SourceSummarySelector";
 import { useImagePreview } from "./useImagePreview";
 
 function normalizeChipValues(values: readonly string[]): string[] {
@@ -90,6 +101,11 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		() => (rawGame ? getSourceDeveloperOptions(rawGame) : []),
 		[rawGame],
 	);
+	const sourceSummaryOptions = useMemo(
+		() => (rawGame ? getSourceSummaryOptions(rawGame) : []),
+		[rawGame],
+	);
+	const summaryLabelId = useId();
 	const selectedGameSourceIdSignature = (() => {
 		return REGISTERED_SOURCE_KEYS.map(
 			(source) => getSourceIdFromDisplay(selectedGame, source) ?? "",
@@ -765,36 +781,58 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 				{/* 简介和标签区域 */}
 				<Stack spacing={3} className="mt-6">
-					{/* 简介 - 可调整大小 */}
-					<TextField
-						label={t("pages.Detail.GameInfoEdit.summary", "游戏简介")}
-						variant="outlined"
-						fullWidth
-						multiline
-						minRows={4}
-						maxRows={12}
-						value={summary}
-						onChange={(e) => setSummary(e.target.value)}
-						disabled={isLoading || disabled}
-						placeholder={t(
-							"pages.Detail.GameInfoEdit.summaryPlaceholder",
-							"请输入游戏简介",
-						)}
-						helperText={t(
-							"pages.Detail.GameInfoEdit.summaryHelperText",
-							"游戏的详细介绍（可拖动右下角调整大小）",
-						)}
-						slotProps={{
-							input: {
-								sx: {
-									"& textarea": {
-										resize: "vertical",
-										overflow: "auto !important",
+					{/* 简介 - 可从数据源选择并继续编辑 */}
+					<Stack spacing={1}>
+						<Stack
+							direction="row"
+							alignItems="center"
+							justifyContent="space-between"
+							spacing={2}
+						>
+							<Typography id={summaryLabelId} variant="subtitle1">
+								{t("pages.Detail.GameInfoEdit.summary", "游戏简介")}
+							</Typography>
+							<SourceSummarySelector
+								options={sourceSummaryOptions}
+								currentSummary={summary}
+								disabled={isLoading || disabled}
+								onSelect={setSummary}
+							/>
+						</Stack>
+						<Typography variant="caption" color="textSecondary">
+							{t(
+								"pages.Detail.GameInfoEdit.summaryHelperText",
+								"游戏的详细介绍（可拖动右下角调整大小）",
+							)}
+						</Typography>
+						<TextField
+							variant="outlined"
+							fullWidth
+							multiline
+							minRows={4}
+							maxRows={12}
+							value={summary}
+							onChange={(e) => setSummary(e.target.value)}
+							disabled={isLoading || disabled}
+							placeholder={t(
+								"pages.Detail.GameInfoEdit.summaryPlaceholder",
+								"请输入游戏简介",
+							)}
+							slotProps={{
+								htmlInput: {
+									"aria-labelledby": summaryLabelId,
+								},
+								input: {
+									sx: {
+										"& textarea": {
+											resize: "vertical",
+											overflow: "auto !important",
+										},
 									},
 								},
-							},
-						}}
-					/>
+							}}
+						/>
+					</Stack>
 
 					{/* 标签 */}
 					<Autocomplete

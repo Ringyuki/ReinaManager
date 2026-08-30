@@ -672,6 +672,8 @@
 				"selectImageFailed": "选择图片失败",
 				"selectLocalImage": "本地图片",
 				"selectSourceCover": "数据源封面",
+				"selectSourceSummary": "从数据源选择",
+				"selectSourceSummaryTitle": "选择游戏简介",
 				"selectSteamLaunchItem": "选择 {{name}}",
 				"sourceCoverAuto": "数据源封面：自动",
 				"sourceCoverAutoRule": "自动规则：{{rule}}",
@@ -684,10 +686,12 @@
 				"steamLaunchItemRequired": "请选择 Steam 启动项",
 				"steamMonitorPathRequired": "Steam 启动需要有效的游戏目录用于运行监控",
 				"summary": "游戏简介",
+				"summaryCharacterCount": "{{length}} 字",
 				"summaryHelperText": "游戏的详细介绍（可拖动右下角调整大小）",
 				"summaryPlaceholder": "请输入游戏简介",
 				"tags": "标签",
-				"unsavedChanges": "未保存"
+				"unsavedChanges": "未保存",
+				"useSourceSummary": "使用此简介"
 			},
 			"gameRanking": "游戏排行",
 			"gameStats": "游戏统计",

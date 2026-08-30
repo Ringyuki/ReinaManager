@@ -672,6 +672,8 @@
 				"selectImageFailed": "選擇圖片失敗",
 				"selectLocalImage": "本地圖片",
 				"selectSourceCover": "資料來源封面",
+				"selectSourceSummary": "從資料來源選擇",
+				"selectSourceSummaryTitle": "選擇遊戲簡介",
 				"selectSteamLaunchItem": "選擇 {{name}}",
 				"sourceCoverAuto": "資料來源封面：自動",
 				"sourceCoverAutoRule": "自動規則：{{rule}}",
@@ -684,10 +686,12 @@
 				"steamLaunchItemRequired": "請選擇 Steam 啟動項目",
 				"steamMonitorPathRequired": "Steam 啟動需要有效的遊戲目錄以追蹤遊玩",
 				"summary": "簡介",
-				"summaryHelperText": "遊戲的簡短描述或劇情概要",
+				"summaryCharacterCount": "{{length}} 字",
+				"summaryHelperText": "遊戲的詳細介紹（可拖動右下角調整大小）",
 				"summaryPlaceholder": "輸入遊戲簡介...",
 				"tags": "標籤",
-				"unsavedChanges": "尚未儲存"
+				"unsavedChanges": "尚未儲存",
+				"useSourceSummary": "使用此簡介"
 			},
 			"gameRanking": "遊戲排行",
 			"gameStats": "遊戲統計",

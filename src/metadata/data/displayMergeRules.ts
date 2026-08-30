@@ -65,6 +65,11 @@ const MIXED_TITLE_SOURCES: readonly SourceType[] = ["vndb", "kun"];
 
 type SourceDisplayMap = Partial<Record<SourceType, SourceDisplayFields>>;
 
+export interface SourceSummaryOption {
+	source: SourceType;
+	summary: string;
+}
+
 const nullToUndefined = <T>(value: T | null | undefined): T | undefined =>
 	value ?? undefined;
 
@@ -103,6 +108,22 @@ export function getSourceDeveloperOptions(game: SourceRecordPayload): string[] {
 			}),
 		),
 	);
+}
+
+export function getSourceSummaryOptions(
+	game: SourceRecordPayload,
+): SourceSummaryOption[] {
+	const sourceMap = getSourceRecordMap(game);
+
+	return SUMMARY_PRIORITY.flatMap((source) => {
+		const data = sourceMap.get(source)?.data;
+		if (data == null) return [];
+
+		const summary = getSourceDisplayFields(source, data).summary;
+		if (!summary?.trim()) return [];
+
+		return [{ source, summary }];
+	});
 }
 
 export function applySingleSourceDisplay(

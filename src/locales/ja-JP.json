@@ -672,6 +672,8 @@
 				"selectImageFailed": "画像の選択に失敗しました",
 				"selectLocalImage": "ローカル画像",
 				"selectSourceCover": "データソースカバー",
+				"selectSourceSummary": "データソースから選択",
+				"selectSourceSummaryTitle": "ゲーム紹介を選択",
 				"selectSteamLaunchItem": "{{name}} を選択",
 				"sourceCoverAuto": "データソースカバー：自動",
 				"sourceCoverAutoRule": "自動ルール：{{rule}}",
@@ -684,10 +686,12 @@
 				"steamLaunchItemRequired": "Steam 起動項目を選択してください",
 				"steamMonitorPathRequired": "Steam 起動のプレイ追跡には有効なゲームディレクトリが必要です",
 				"summary": "概要",
-				"summaryHelperText": "ゲームの短い説明またはストーリー概要",
+				"summaryCharacterCount": "{{length}}文字",
+				"summaryHelperText": "ゲームの詳細紹介（右下をドラッグしてサイズを調整できます）",
 				"summaryPlaceholder": "ゲーム概要を入力...",
 				"tags": "タグ",
-				"unsavedChanges": "未保存"
+				"unsavedChanges": "未保存",
+				"useSourceSummary": "この紹介を使用"
 			},
 			"gameRanking": "ゲームランキング",
 			"gameStats": "ゲーム統計",

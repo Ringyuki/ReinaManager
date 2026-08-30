@@ -690,6 +690,8 @@
 				"selectImageFailed": "Failed to select image",
 				"selectLocalImage": "Local Image",
 				"selectSourceCover": "Source Cover",
+				"selectSourceSummary": "Choose from Sources",
+				"selectSourceSummaryTitle": "Choose Game Description",
 				"selectSteamLaunchItem": "Select {{name}}",
 				"sourceCoverAuto": "Source cover: Auto",
 				"sourceCoverAutoRule": "Auto rule: {{rule}}",
@@ -702,10 +704,12 @@
 				"steamLaunchItemRequired": "Select a Steam launch item",
 				"steamMonitorPathRequired": "Steam launch requires a valid game directory for play tracking",
 				"summary": "Summary",
-				"summaryHelperText": "A short description of the game or story outline",
+				"summaryCharacterCount": "{{length}} characters",
+				"summaryHelperText": "A detailed description of the game (drag the bottom-right corner to resize)",
 				"summaryPlaceholder": "Enter game summary...",
 				"tags": "Tags",
-				"unsavedChanges": "Unsaved"
+				"unsavedChanges": "Unsaved",
+				"useSourceSummary": "Use This Description"
 			},
 			"gameRanking": "Game Ranking",
 			"gameStats": "Game Stats",
