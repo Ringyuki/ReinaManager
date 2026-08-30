@@ -8,6 +8,7 @@ import { Alert, Box, Button, Paper, Skeleton, Typography } from "@mui/material";
 import { LineChart } from "@mui/x-charts/LineChart";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useScrollRestore } from "@/hooks/common/useScrollRestore";
 import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
 import {
 	useAllGameStatistics,
@@ -172,6 +173,9 @@ export function Stats() {
 	}, [overview?.trend, trendDateFormatter]);
 	const error = gamesQuery.error ?? statisticsQuery.error;
 	const isLoading = gamesQuery.isLoading || statisticsQuery.isLoading;
+	useScrollRestore("/stats", {
+		isLoading: isLoading || distributionQuery.isLoading,
+	});
 	const hasBlockingError = Boolean(
 		error &&
 			(!statisticsQuery.data || gamesQuery.index.displayList.length === 0),
