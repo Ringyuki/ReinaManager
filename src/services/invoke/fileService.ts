@@ -120,11 +120,13 @@ class FileService extends BaseService {
 		path: string,
 		maxDepth: number,
 		scanMode: GameDirectoryScanMode,
+		scanExecutables: boolean,
 	): Promise<ScanResult[]> {
 		return this.invoke<ScanResult[]>("scan_directory_for_games", {
 			path,
 			maxDepth,
 			scanMode,
+			scanExecutables,
 		});
 	}
 

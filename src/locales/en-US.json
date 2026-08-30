@@ -113,6 +113,7 @@
 			"saveNameOnly": "Save Name Only",
 			"scanDepth": "Scan Depth",
 			"scanDepthValue": "{{depth}} levels",
+			"scanFirstLevelExecutables": "Scan launch files",
 			"scanMode": "Scan Mode",
 			"scanModeExecutable": "Executable Scan",
 			"scanModeFirstLevel": "First-level Folders",

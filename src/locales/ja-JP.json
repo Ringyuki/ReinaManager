@@ -109,6 +109,7 @@
 			"saveNameOnly": "名前のみ保存",
 			"scanDepth": "スキャン深度",
 			"scanDepthValue": "{{depth}} 階層",
+			"scanFirstLevelExecutables": "起動ファイルをスキャン",
 			"scanMode": "スキャンモード",
 			"scanModeExecutable": "実行ファイルスキャン",
 			"scanModeFirstLevel": "第1階層フォルダー",

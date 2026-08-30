@@ -109,6 +109,7 @@
 			"saveNameOnly": "仅保存名称",
 			"scanDepth": "扫描深度",
 			"scanDepthValue": "{{depth}} 层",
+			"scanFirstLevelExecutables": "扫描启动文件",
 			"scanMode": "扫描模式",
 			"scanModeExecutable": "可执行文件扫描",
 			"scanModeFirstLevel": "一级目录导入",

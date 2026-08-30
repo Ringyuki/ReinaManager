@@ -12,12 +12,14 @@ import {
 	DialogContent,
 	DialogTitle,
 	FormControl,
+	FormControlLabel,
 	IconButton,
 	InputLabel,
 	MenuItem,
 	Popover,
 	Select,
 	Stack,
+	Switch,
 	TextField,
 	Typography,
 } from "@mui/material";
@@ -80,6 +82,8 @@ interface BulkImportTabProps {
 	onScanModeChange: (mode: GameScanMode) => void;
 	scanMaxDepth: number;
 	onScanMaxDepthChange: (depth: number) => void;
+	scanFirstLevelExecutables: boolean;
+	onScanFirstLevelExecutablesChange: (checked: boolean) => void;
 	dropBatch?: BulkDropBatch;
 	onDropBatchHandled: (batchId: number) => void;
 }
@@ -119,6 +123,8 @@ const BulkImportTab = ({
 	onScanModeChange,
 	scanMaxDepth,
 	onScanMaxDepthChange,
+	scanFirstLevelExecutables,
+	onScanFirstLevelExecutablesChange,
 	dropBatch,
 	onDropBatchHandled,
 }: BulkImportTabProps) => {
@@ -246,6 +252,7 @@ const BulkImportTab = ({
 			selectedRootPath: string,
 			maxDepth: number,
 			mode: GameDirectoryScanMode,
+			scanExecutables: boolean,
 		) => {
 			setIsScanningGames(true);
 			try {
@@ -253,6 +260,7 @@ const BulkImportTab = ({
 					selectedRootPath,
 					maxDepth,
 					mode,
+					scanExecutables,
 				);
 				setItems(
 					subdirs.map((dir) => ({
@@ -418,23 +426,39 @@ const BulkImportTab = ({
 
 		setRootPath(result);
 		setHasScanned(false);
-		await scanSelectedFolder(result, scanMaxDepth, scanMode);
+		await scanSelectedFolder(
+			result,
+			scanMaxDepth,
+			scanMode,
+			scanFirstLevelExecutables,
+		);
 	};
 
 	const handleScanDepthChange = (nextDepth: number) => {
 		onScanMaxDepthChange(nextDepth);
 		if (rootPath && scanMode === "executable") {
-			void scanSelectedFolder(rootPath, nextDepth, scanMode);
+			void scanSelectedFolder(rootPath, nextDepth, scanMode, false);
 		}
 	};
 
 	const handleScanModeChange = (nextMode: GameScanMode) => {
 		onScanModeChange(nextMode);
-		setSettingsAnchorEl(null);
 		setHasScanned(false);
 		setItems([]);
 		if (nextMode !== "steam" && rootPath) {
-			void scanSelectedFolder(rootPath, scanMaxDepth, nextMode);
+			void scanSelectedFolder(
+				rootPath,
+				scanMaxDepth,
+				nextMode,
+				scanFirstLevelExecutables,
+			);
+		}
+	};
+
+	const handleScanFirstLevelExecutablesChange = (checked: boolean) => {
+		onScanFirstLevelExecutablesChange(checked);
+		if (rootPath && scanMode === "first_level_directory") {
+			void scanSelectedFolder(rootPath, scanMaxDepth, scanMode, checked);
 		}
 	};
 
@@ -874,7 +898,7 @@ const BulkImportTab = ({
 							horizontal: "right",
 						}}
 					>
-						<Stack spacing={2} sx={{ p: 2.5, minWidth: 260 }}>
+						<Stack spacing={1.5} sx={{ p: 2.5, minWidth: 260 }}>
 							<FormControl size="small" disabled={loading} fullWidth>
 								<InputLabel id="bulk-import-scan-mode-label">
 									{t("components.BulkImportModal.scanMode", "扫描模式")}
@@ -934,6 +958,27 @@ const BulkImportTab = ({
 										))}
 									</Select>
 								</FormControl>
+							)}
+							{scanMode === "first_level_directory" && (
+								<FormControlLabel
+									labelPlacement="start"
+									className="box-border w-full justify-between pl-3"
+									control={
+										<Switch
+											checked={scanFirstLevelExecutables}
+											onChange={(event) =>
+												handleScanFirstLevelExecutablesChange(
+													event.target.checked,
+												)
+											}
+											disabled={loading}
+										/>
+									}
+									label={t(
+										"components.BulkImportModal.scanFirstLevelExecutables",
+										"扫描启动文件",
+									)}
+								/>
 							)}
 						</Stack>
 					</Popover>

@@ -71,6 +71,7 @@ const REQUEST_TIMEOUT_MS = 100000; // 请求超时时间
 const ERROR_DISPLAY_DURATION_MS = 5000; // 错误提示显示时长
 const DEFAULT_SCAN_DEPTH = 3;
 const DEFAULT_SCAN_MODE: GameScanMode = "executable";
+const DEFAULT_SCAN_FIRST_LEVEL_EXECUTABLES = false;
 
 type AddModalTab = "single" | "bulk" | "cloud";
 
@@ -158,6 +159,9 @@ const AddModal: React.FC = () => {
 	const [bulkApiSource, setBulkApiSource] = useState<SourceType>();
 	const [scanMode, setScanMode] = useState<GameScanMode>(DEFAULT_SCAN_MODE);
 	const [scanMaxDepth, setScanMaxDepth] = useState(DEFAULT_SCAN_DEPTH);
+	const [scanFirstLevelExecutables, setScanFirstLevelExecutables] = useState(
+		DEFAULT_SCAN_FIRST_LEVEL_EXECUTABLES,
+	);
 	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
 	const [cloudBusy, setCloudBusy] = useState(false);
 	const [bulkDropQueue, setBulkDropQueue] = useState<BulkDropBatch[]>([]);
@@ -586,6 +590,8 @@ const AddModal: React.FC = () => {
 					onScanModeChange={setScanMode}
 					scanMaxDepth={scanMaxDepth}
 					onScanMaxDepthChange={setScanMaxDepth}
+					scanFirstLevelExecutables={scanFirstLevelExecutables}
+					onScanFirstLevelExecutablesChange={setScanFirstLevelExecutables}
 					dropBatch={bulkDropQueue[0]}
 					onDropBatchHandled={handleBulkDropBatchHandled}
 				/>

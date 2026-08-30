@@ -109,6 +109,7 @@
 			"saveNameOnly": "僅保存名稱",
 			"scanDepth": "掃描深度",
 			"scanDepthValue": "{{depth}} 層",
+			"scanFirstLevelExecutables": "掃描啟動檔案",
 			"scanMode": "掃描模式",
 			"scanModeExecutable": "執行檔掃描",
 			"scanModeFirstLevel": "一級目錄匯入",

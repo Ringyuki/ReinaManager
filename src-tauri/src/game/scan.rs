@@ -320,6 +320,7 @@ pub async fn scan_directory_for_games(
     path: String,
     max_depth: usize,
     scan_mode: ScanMode,
+    scan_executables: bool,
 ) -> Result<Vec<ScanResult>, String> {
     // 先做路径预检查（一次 syscall，可在 async 上下文进行）
     if !Path::new(&path).is_dir() {
@@ -346,7 +347,7 @@ pub async fn scan_directory_for_games(
             max_depth,
             existing_paths.len()
         );
-        scan_games_blocking(path, existing_paths, max_depth, scan_mode)
+        scan_games_blocking(path, existing_paths, max_depth, scan_mode, scan_executables)
     })
     .await
     .map_err(|e| {
@@ -380,19 +381,28 @@ fn scan_games_blocking(
     existing_paths: ImportPathIndex,
     max_depth: usize,
     scan_mode: ScanMode,
+    scan_executables: bool,
 ) -> Result<Vec<ScanResult>, String> {
     match scan_mode {
         ScanMode::Executable => scan_executable_games_blocking(path, existing_paths, max_depth),
-        ScanMode::FirstLevelDirectory => Ok(scan_direct_child_directories(path, existing_paths)),
+        ScanMode::FirstLevelDirectory => Ok(scan_direct_child_directories(
+            path,
+            existing_paths,
+            scan_executables,
+        )),
     }
 }
 
-fn scan_direct_child_directories(path: String, existing_paths: ImportPathIndex) -> Vec<ScanResult> {
+fn scan_direct_child_directories(
+    path: String,
+    existing_paths: ImportPathIndex,
+    scan_executables: bool,
+) -> Vec<ScanResult> {
     let dir_path = PathBuf::from(path);
     let mut executables_by_dir: HashMap<PathBuf, Vec<String>> = HashMap::new();
     let mut walker = WalkDir::new(&dir_path)
         .min_depth(1)
-        .max_depth(2)
+        .max_depth(if scan_executables { 2 } else { 1 })
         .follow_links(false)
         .into_iter();
 
@@ -732,8 +742,11 @@ mod tests {
 
         let mut existing_paths = ImportPathIndex::default();
         existing_paths.insert(&game_b);
-        let results =
-            scan_direct_child_directories(root.to_string_lossy().into_owned(), existing_paths);
+        let results = scan_direct_child_directories(
+            root.to_string_lossy().into_owned(),
+            existing_paths,
+            true,
+        );
 
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].name, "GameA");
