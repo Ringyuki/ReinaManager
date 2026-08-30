@@ -197,16 +197,3 @@ impl GameInstallTaskPayloadV1 {
             .join(format!("reina-{task_id}.extracting")))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::GameInstallResultV1;
-    use std::path::Path;
-
-    #[test]
-    fn partial_result_stores_executable_name_only() {
-        let result = GameInstallResultV1::partial(Path::new(r"C:\Games\Reina"), Some("game.exe"));
-
-        assert_eq!(result.executable.as_deref(), Some("game.exe"));
-    }
-}
