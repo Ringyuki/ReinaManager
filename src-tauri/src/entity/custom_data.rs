@@ -12,8 +12,11 @@ use serde::{Deserialize, Serialize};
 pub enum SourceType {
     Bgm,
     Vndb,
+    Hikarinagi,
     Ymgal,
     Kun,
+    Dlsite,
+    Erogamescape,
 }
 
 /// 自定义元数据结构（存储为 JSON）

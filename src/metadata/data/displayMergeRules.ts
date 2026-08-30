@@ -20,7 +20,7 @@ export const SOURCE_COVER_PRIORITY: readonly SourceType[] = [
 	"ymgal",
 ];
 
-const BASIC_FIELD_PRIORITY: readonly SourceType[] = [
+export const MIXED_BASIC_SOURCE_PRIORITY: readonly SourceType[] = [
 	"bgm",
 	"vndb",
 	"hikarinagi",
@@ -208,7 +208,9 @@ export function applyMixedSourceDisplay(
 	coverSource?: SourceType | null,
 ): void {
 	const displays = buildDisplayMap(sources);
-	const primarySource = BASIC_FIELD_PRIORITY.find((source) => displays[source]);
+	const primarySource = MIXED_BASIC_SOURCE_PRIORITY.find(
+		(source) => displays[source],
+	);
 	if (primarySource) {
 		assignBasicFields(target, displays[primarySource] as SourceDisplayFields);
 	}

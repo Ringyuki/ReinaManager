@@ -116,11 +116,12 @@ BGM / VNDB / Hikarinagi 用户收藏
 ## 新增数据源
 
 1. 在 `src/types` 定义源数据类型，并扩展 `SourceType` / `SOURCE_TYPES`。
-2. 在 `metadata/api` 实现该源请求和响应转换。
+2. 在 `metadata/api` 实现该源请求和响应转换；若请求新域名，同步更新 Tauri capability。
 3. 在 `metadata/adapters` 实现 `MetadataSourceAdapter<TData>`。
 4. 在 `sourceRegistry.ts` 注册 Adapter 并扩展 `SourceAdapterMap`。
 5. 根据产品行为调整 `constants.ts` 中的搜索/混合源集合和默认值。
-6. 若新源对字段合并有意义，更新 `displayMergeRules.ts`。
-7. 更新跨层类型、国际化文案和相关设置 UI，再按 i18n Skill 验证。
+6. 若新源对字段合并有意义，更新 `displayMergeRules.ts`；参与基础字段合并时，同步前后端的 `MIXED_BASIC_SOURCE_PRIORITY`。
+7. 若新源可作为用户选定的封面来源，同步扩展 Rust `CustomData::cover_source` 使用的 `SourceType` 枚举。
+8. 更新跨层类型、国际化文案和相关设置 UI，再按 i18n Skill 验证。
 
 新源应尽可能通过 registry 自动进入通用流程。仅在有真实产品差异时，才在上层增加源特有分支。
