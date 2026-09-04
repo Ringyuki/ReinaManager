@@ -325,12 +325,30 @@ fn ensure_success(
             ArchiveError::PasswordRequired
         });
     }
-    let detail = stderr
+    // 末行往往只是错误计数汇总；一并带上前几条具体错误，便于区分磁盘空间、
+    // 路径、数据损坏等不同原因。
+    let mut details: Vec<&str> = stderr
+        .lines()
+        .chain(stdout.lines())
+        .map(str::trim)
+        .filter(|line| line.starts_with("ERROR"))
+        .take(3)
+        .collect();
+    if let Some(summary) = stderr
         .lines()
         .chain(stdout.lines())
         .rev()
-        .find(|line| !line.trim().is_empty())
-        .unwrap_or("未知错误");
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        && !details.contains(&summary)
+    {
+        details.push(summary);
+    }
+    let detail = if details.is_empty() {
+        "未知错误".to_string()
+    } else {
+        details.join("；")
+    };
     Err(ArchiveError::Other(format!(
         "7-Zip {action}失败（退出码 {}）: {detail}",
         output.status.code().unwrap_or(-1)
