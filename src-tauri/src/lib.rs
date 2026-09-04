@@ -88,7 +88,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            Some(vec!["--flag1", "--flag2"]), /* arbitrary number of args to pass to your app */
+            Some(vec!["--startup"]), /* arbitrary number of args to pass to your app */
         ))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())

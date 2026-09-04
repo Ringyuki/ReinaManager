@@ -24,7 +24,7 @@ use std::sync::OnceLock;
 use tauri::Manager;
 use tokio::sync::{Semaphore, SemaphorePermit, watch};
 
-const MAX_CONCURRENT_DOWNLOADS: usize = 3;
+const MAX_CONCURRENT_DOWNLOADS: usize = 1;
 const MAX_CONCURRENT_EXTRACTS: usize = 1;
 
 static DOWNLOAD_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
