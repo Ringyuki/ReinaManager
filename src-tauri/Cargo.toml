@@ -20,7 +20,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "~2.6.3", features = [] }
 dotenvy = "0.15.7"
-sevenz-rust2 = { version = "0.22.0", default-features = false, features = ["util"] }
+sevenz-rust2 = { version = "0.22.2", default-features = false, features = ["util"] }
 sha2 = "0.11.0"
 tar = "0.4.46"
 ureq = { version = "3.4.0", default-features = false, features = ["rustls"] }
@@ -36,20 +36,20 @@ log = "0.4.34"
 # Tauri core and plugins
 tauri = { version = "~2.11.5", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-autostart = "~2.5.1"
-tauri-plugin-dialog = "~2.7.2"
-tauri-plugin-deep-link = "~2.4.9"
-tauri-plugin-http = { version = "~2.5.9", default-features = false, features = [
+tauri-plugin-dialog = "~2.7.3"
+tauri-plugin-deep-link = "~2.4.10"
+tauri-plugin-http = { version = "~2.6.0", default-features = false, features = [
     "rustls-tls",
     "http2",
     "charset",
-    "macos-system-configuration",
+    "system-proxy",
     "unsafe-headers",
 ] }
-tauri-plugin-log = "~2.9.0"
-tauri-plugin-opener = "~2.5.4"
-tauri-plugin-shell = "~2.3.5"
-tauri-plugin-single-instance = { version = "~2.4.3", features = ["deep-link"] }
-tauri-plugin-updater = "~2.10.1"
+tauri-plugin-log = "~2.9.1"
+tauri-plugin-opener = "~2.5.5"
+tauri-plugin-shell = "~2.3.6"
+tauri-plugin-single-instance = { version = "~2.4.4", features = ["deep-link"] }
+tauri-plugin-updater = "~2.11.0"
 tauri-plugin-window-state = "=2.2.3"
 tauri-plugin-store = "~2.4.4"
 
@@ -59,7 +59,7 @@ arboard = { version = "3.6.1", default-features = false, features = [
     "image-data",
     "wayland-data-control",
 ] }
-sevenz-rust2 = { version = "0.22.0", default-features = false, features = [
+sevenz-rust2 = { version = "0.22.2", default-features = false, features = [
     "compress",
     "util",
     "zstd",
