@@ -325,6 +325,12 @@ fn ensure_success(
             ArchiveError::PasswordRequired
         });
     }
+    // zstd 变体 7z 等非标准编解码器：字节完好但内置 7-Zip 解不开，重试无意义。
+    if stderr.contains("Unsupported Method") || stdout.contains("Unsupported Method") {
+        return Err(ArchiveError::Other(
+            "压缩包使用了内置 7-Zip 不支持的压缩算法（常见于 zstd 变体 7z），请联系资源提供方改用标准压缩算法".to_string(),
+        ));
+    }
     // 任务错误里只放摘要，完整输出尾部进日志供排查。
     let tail: Vec<&str> = {
         let mut lines: Vec<&str> = stderr
