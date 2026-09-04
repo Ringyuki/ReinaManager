@@ -168,8 +168,14 @@ async fn run(
         path: control_file_path.to_path_buf(),
         shared: Arc::clone(&shared),
     };
-    let committer_task =
-        spawn_committer(committer.clone(), options.commit_interval, cancel.clone());
+    // 提交器不能被 abort：进入阻塞线程池的 fsync/写控制文件无法取消，会与
+    // 最终提交并发写同一个临时文件。用独立信号让它在两次提交之间自行退出。
+    let committer_shutdown = CancellationToken::new();
+    let committer_task = spawn_committer(
+        committer.clone(),
+        options.commit_interval,
+        committer_shutdown.clone(),
+    );
 
     let outcome = if probe.range_supported {
         shared.set_phase(Phase::Downloading);
@@ -198,7 +204,7 @@ async fn run(
     };
 
     // 停掉周期提交器后必做一次最终落盘提交，暂停/取消/出错最多损失页缓存。
-    committer_task.abort();
+    committer_shutdown.cancel();
     let _ = committer_task.await;
     let commit_result = committer.commit().await;
 
@@ -913,7 +919,7 @@ impl Committer {
 fn spawn_committer(
     committer: Committer,
     interval: Duration,
-    cancel: CancellationToken,
+    shutdown: CancellationToken,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut ticker = tokio::time::interval(interval.max(Duration::from_millis(100)));
@@ -922,12 +928,12 @@ fn spawn_committer(
         loop {
             tokio::select! {
                 biased;
-                () = cancel.cancelled() => break,
-                _ = ticker.tick() => {
-                    if let Err(error) = committer.commit().await {
-                        log::warn!("periodic commit failed: {error}");
-                    }
-                }
+                () = shutdown.cancelled() => break,
+                _ = ticker.tick() => {}
+            }
+            // 提交放在 select 之外：一旦开始就完整跑完，停止信号只在间隙生效。
+            if let Err(error) = committer.commit().await {
+                log::warn!("periodic commit failed: {error}");
             }
         }
     })
