@@ -51,6 +51,9 @@ pub struct DownloadOptions {
     pub grow_after_successes: u32,
     /// 连续可重试失败超过该数量则整体失败。
     pub max_consecutive_failures: u32,
+    /// 单流模式下重新探测 Range 支持的间隔；CDN 冷缓存首次探测常拿到 200，
+    /// 缓存命中后即可升级为多连接分段下载。
+    pub upgrade_probe_interval: Duration,
     /// 可选的跨下载连接预算。
     pub budget: Option<SharedBudget>,
 }
@@ -67,6 +70,7 @@ impl Default for DownloadOptions {
             progress_interval: Duration::from_millis(250),
             grow_after_successes: 8,
             max_consecutive_failures: 20,
+            upgrade_probe_interval: Duration::from_secs(10),
             budget: None,
         }
     }

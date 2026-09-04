@@ -25,6 +25,8 @@ enum Mode {
     Normal,
     /// 无视 Range，始终 200 返回完整内容。
     IgnoreRange,
+    /// 前 N 个请求无视 Range，之后正常响应 206——模拟 CDN 冷缓存。
+    IgnoreRangeFirst(usize),
     /// 始终 403。
     Forbidden,
     /// 前 N 个请求返回 429 加 `Retry-After: 0`，之后正常。
@@ -42,6 +44,8 @@ struct ServerState {
     mode: std::sync::Mutex<Mode>,
     requests: AtomicUsize,
     body_bytes_served: AtomicU64,
+    /// 已服务的 206 分段响应数。
+    ranged_responses: AtomicUsize,
     /// 每写 8 KiB 插入的延迟，让测试能观察到下载中途的状态。
     chunk_delay: Duration,
 }
@@ -60,6 +64,7 @@ impl Server {
             mode: std::sync::Mutex::new(mode),
             requests: AtomicUsize::new(0),
             body_bytes_served: AtomicU64::new(0),
+            ranged_responses: AtomicUsize::new(0),
             chunk_delay,
         });
         let accept_state = Arc::clone(&state);
@@ -83,6 +88,10 @@ impl Server {
 
     fn requests(&self) -> usize {
         self.state.requests.load(Ordering::Relaxed)
+    }
+
+    fn ranged_responses(&self) -> usize {
+        self.state.ranged_responses.load(Ordering::Relaxed)
     }
 
     fn body_bytes_served(&self) -> u64 {
@@ -143,7 +152,14 @@ async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Resu
         _ => {}
     }
 
-    let ignore_range = matches!(mode, Mode::IgnoreRange);
+    let ignore_range = match mode {
+        Mode::IgnoreRange => true,
+        Mode::IgnoreRangeFirst(remaining) if remaining > 0 => {
+            *state.mode.lock().unwrap() = Mode::IgnoreRangeFirst(remaining - 1);
+            true
+        }
+        _ => false,
+    };
     match (range, ignore_range) {
         (Some(range), false) => {
             let (start, end) = parse_range(Some(&range), total);
@@ -156,6 +172,7 @@ async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Resu
                 "HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {start}-{end}/{reported_total}\r\nContent-Length: {}\r\nETag: \"fixed-etag\"\r\nConnection: close\r\n\r\n",
                 body.len()
             );
+            state.ranged_responses.fetch_add(1, Ordering::Relaxed);
             stream.write_all(head.as_bytes()).await?;
             let cap = match mode {
                 Mode::DropAfter { bytes, times } if times > 0 => {
@@ -242,6 +259,7 @@ fn fast_options() -> DownloadOptions {
         progress_interval: Duration::from_millis(50),
         grow_after_successes: 4,
         max_consecutive_failures: 20,
+        upgrade_probe_interval: Duration::from_millis(150),
         budget: None,
     }
 }
@@ -394,6 +412,34 @@ async fn falls_back_to_single_stream_when_ranges_ignored() {
 
     assert!(matches!(result, Ok(Outcome::Completed)), "{result:?}");
     assert_eq!(std::fs::read(&paths.target).unwrap(), data);
+}
+
+#[tokio::test]
+async fn upgrades_to_segmented_when_ranges_become_available() {
+    let data = test_data(2 * 1024 * 1024);
+    // 前两个请求（探测 + 单流 GET）无视 Range，之后正常——模拟 CDN 冷缓存。
+    let server = Server::start(
+        data.clone(),
+        Mode::IgnoreRangeFirst(2),
+        Duration::from_millis(2),
+    )
+    .await;
+    let paths = run_paths();
+
+    let (result, progress) = run_download(
+        request(server.url("/cold-cache"), &paths.target, data.len() as u64),
+        fast_options(),
+    )
+    .await;
+
+    assert!(matches!(result, Ok(Outcome::Completed)), "{result:?}");
+    assert_eq!(std::fs::read(&paths.target).unwrap(), data);
+    assert!(
+        server.ranged_responses() >= 2,
+        "下载应升级到分段模式，实际 206 响应数: {}",
+        server.ranged_responses()
+    );
+    assert_eq!(progress.phase, Phase::Done);
 }
 
 #[tokio::test]

@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 use std::fs::File;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime};
 
 use reqwest::header::{ETAG, LAST_MODIFIED, RANGE};
@@ -160,10 +160,22 @@ async fn run(
         .await
     } else {
         shared.set_phase(Phase::SingleStream);
-        run_single_stream(
+        match run_single_stream(
             request, options, client, &shared, &pieces, &file, size, cancel,
         )
         .await
+        {
+            Ok(StreamEnd::Upgraded) => {
+                shared.set_phase(Phase::Downloading);
+                run_segmented(
+                    request, options, client, &shared, &pieces, &file, size, cancel,
+                )
+                .await
+            }
+            Ok(StreamEnd::Completed) => Ok(Outcome::Completed),
+            Ok(StreamEnd::Cancelled) => Ok(Outcome::Cancelled),
+            Err(error) => Err(error),
+        }
     };
 
     // 停掉周期提交器后必做一次最终落盘提交，暂停/取消/出错最多损失页缓存。
@@ -625,6 +637,13 @@ async fn fetch_piece(
 // ---------------------------------------------------------------------------
 // 单流回退
 
+enum StreamEnd {
+    Completed,
+    Cancelled,
+    /// 探测到服务器已支持 Range，应切换到分段模式继续。
+    Upgraded,
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn run_single_stream(
     request: &DownloadRequest,
@@ -635,24 +654,61 @@ async fn run_single_stream(
     file: &Arc<File>,
     size: u64,
     cancel: &CancellationToken,
-) -> Result<Outcome, DownloadError> {
+) -> Result<StreamEnd, DownloadError> {
     shared.connections.store(1, Ordering::Relaxed);
+    // 后台定期重探 Range 支持；单流进度按分片记录，升级时可无损衔接。
+    let upgrade = Arc::new(AtomicBool::new(false));
+    let prober = spawn_upgrade_prober(
+        client.clone(),
+        request.url.clone(),
+        options.upgrade_probe_interval,
+        cancel.clone(),
+        Arc::clone(&upgrade),
+    );
+    let end = run_single_stream_inner(
+        request, options, client, shared, pieces, file, size, cancel, &upgrade,
+    )
+    .await;
+    prober.abort();
+    end
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_single_stream_inner(
+    request: &DownloadRequest,
+    options: &DownloadOptions,
+    client: &Client,
+    shared: &Arc<Shared>,
+    pieces: &Arc<Vec<AtomicU64>>,
+    file: &Arc<File>,
+    size: u64,
+    cancel: &CancellationToken,
+    upgrade: &Arc<AtomicBool>,
+) -> Result<StreamEnd, DownloadError> {
     let mut attempt = 0u32;
     loop {
         if cancel.is_cancelled() {
-            return Ok(Outcome::Cancelled);
+            return Ok(StreamEnd::Cancelled);
+        }
+        if upgrade.load(Ordering::Relaxed) {
+            return Ok(StreamEnd::Upgraded);
         }
         if attempt > 0 {
             let delay = backoff(attempt);
             tokio::select! {
                 biased;
-                () = cancel.cancelled() => return Ok(Outcome::Cancelled),
+                () = cancel.cancelled() => return Ok(StreamEnd::Cancelled),
                 () = tokio::time::sleep(delay) => {}
             }
         }
-        match stream_once(request, options, client, shared, pieces, file, size, cancel).await {
-            Ok(true) => return Ok(Outcome::Completed),
-            Ok(false) => return Ok(Outcome::Cancelled),
+        match stream_once(
+            request, options, client, shared, pieces, file, size, cancel, upgrade,
+        )
+        .await
+        {
+            Ok(StreamPass::Complete) => return Ok(StreamEnd::Completed),
+            Ok(StreamPass::Cancelled) => return Ok(StreamEnd::Cancelled),
+            Ok(StreamPass::Upgrade) => return Ok(StreamEnd::Upgraded),
             Err(error) if error.is_retryable() => {
                 shared.retries.fetch_add(1, Ordering::Relaxed);
                 attempt += 1;
@@ -661,6 +717,10 @@ async fn run_single_stream(
                         attempts: attempt,
                         last: Box::new(error),
                     });
+                }
+                // 已支持 Range 就不必从零重来，直接升级续传。
+                if upgrade.load(Ordering::Relaxed) {
+                    return Ok(StreamEnd::Upgraded);
                 }
                 // 从零重来：服务器不认 Range。
                 for slot in pieces.iter() {
@@ -674,7 +734,13 @@ async fn run_single_stream(
     }
 }
 
-/// 完整跑一遍。`Ok(true)` 完成，`Ok(false)` 被取消。
+enum StreamPass {
+    Complete,
+    Cancelled,
+    Upgrade,
+}
+
+/// 完整跑一遍单流下载。
 #[allow(clippy::too_many_arguments)]
 async fn stream_once(
     request: &DownloadRequest,
@@ -685,7 +751,8 @@ async fn stream_once(
     file: &Arc<File>,
     size: u64,
     cancel: &CancellationToken,
-) -> Result<bool, DownloadError> {
+    upgrade: &Arc<AtomicBool>,
+) -> Result<StreamPass, DownloadError> {
     let response = client
         .get(&request.url)
         .send()
@@ -710,7 +777,7 @@ async fn stream_once(
     loop {
         let chunk = tokio::select! {
             biased;
-            () = cancel.cancelled() => return Ok(false),
+            () = cancel.cancelled() => return Ok(StreamPass::Cancelled),
             chunk = tokio::time::timeout(options.stall_timeout, response.chunk()) => match chunk {
                 Err(_) => return Err(DownloadError::Network("single stream stalled".into())),
                 Ok(result) => result.map_err(|error| map_reqwest(&error))?,
@@ -745,13 +812,43 @@ async fn stream_once(
                 break;
             }
         }
+        // 写入之后再检查升级信号，保证已收字节都计入进度。
+        if upgrade.load(Ordering::Relaxed) {
+            return Ok(StreamPass::Upgrade);
+        }
     }
     if absolute != size {
         return Err(DownloadError::Network(format!(
             "single stream ended early: {absolute} of {size} bytes"
         )));
     }
-    Ok(true)
+    Ok(StreamPass::Complete)
+}
+
+/// 单流期间的后台探测：服务器一旦返回 206 就置位升级标志。
+fn spawn_upgrade_prober(
+    client: Client,
+    url: String,
+    interval: Duration,
+    cancel: CancellationToken,
+    upgrade: Arc<AtomicBool>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let interval = interval.max(Duration::from_millis(100));
+        loop {
+            tokio::select! {
+                biased;
+                () = cancel.cancelled() => break,
+                () = tokio::time::sleep(interval) => {}
+            }
+            if let Ok(result) = probe(&client, &url).await {
+                if result.range_supported {
+                    upgrade.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+        }
+    })
 }
 
 // ---------------------------------------------------------------------------
