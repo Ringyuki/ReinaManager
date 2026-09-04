@@ -129,7 +129,16 @@ pub(crate) async fn download_file(
                 _ => Err(TaskFailure::new("cancelled", "任务已取消")),
             }
         }
-        Err(error) => Err(map_download_error(&error, &request.provider)),
+        Err(error) => {
+            // 映射成用户文案前先记录原始错误类别，保留排查线索。
+            log::error!(
+                "下载失败 task_id={} kind={} status={:?}: {error}",
+                task.id,
+                error.kind(),
+                error.http_status(),
+            );
+            Err(map_download_error(&error, &request.provider))
+        }
     }
 }
 

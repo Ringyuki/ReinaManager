@@ -325,6 +325,21 @@ fn ensure_success(
             ArchiveError::PasswordRequired
         });
     }
+    // 任务错误里只放摘要，完整输出尾部进日志供排查。
+    let tail: Vec<&str> = {
+        let mut lines: Vec<&str> = stderr
+            .lines()
+            .chain(stdout.lines())
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .collect();
+        lines.split_off(lines.len().saturating_sub(15))
+    };
+    log::error!(
+        "7-Zip {action}失败（退出码 {}），输出尾部:\n{}",
+        output.status.code().unwrap_or(-1),
+        tail.join("\n")
+    );
     // 末行往往只是错误计数汇总；一并带上前几条具体错误，便于区分磁盘空间、
     // 路径、数据损坏等不同原因。
     let mut details: Vec<&str> = stderr
