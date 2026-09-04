@@ -1,8 +1,7 @@
-//! On-disk control file that records per-piece progress.
+//! 记录分片进度的磁盘控制文件。
 //!
-//! The control file sits next to the target file and is written atomically
-//! (temp file + rename). Its presence means the target is incomplete; the
-//! downloader removes it as the last step of a successful download.
+//! 控制文件位于目标文件旁，原子写入（临时文件 + rename）。它的存在表示
+//! 目标未完成；下载成功的最后一步就是删掉它。
 
 use std::ffi::OsString;
 use std::io;
@@ -12,11 +11,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::fsx::atomic_write;
 
-/// File name suffix appended to the target path for the control file.
+/// 控制文件名后缀，拼接在目标路径之后。
 pub const CONTROL_SUFFIX: &str = ".reina-dl";
 pub(crate) const CONTROL_VERSION: u32 = 1;
 
-/// Returns the control file path for a target file.
+/// 返回目标文件对应的控制文件路径。
 #[must_use]
 pub fn control_path(target: &Path) -> PathBuf {
     let mut value: OsString = target.as_os_str().to_owned();
@@ -24,8 +23,7 @@ pub fn control_path(target: &Path) -> PathBuf {
     PathBuf::from(value)
 }
 
-/// Returns every path the downloader may create for a target, including the
-/// target itself. Callers use this to clean up a discarded download.
+/// 返回下载器可能创建的所有路径（含目标本身），供调用方清理废弃下载。
 #[must_use]
 pub fn artifact_paths(target: &Path) -> Vec<PathBuf> {
     let control = control_path(target);
@@ -60,7 +58,7 @@ pub(crate) struct ControlFile {
     pub etag: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_modified: Option<String>,
-    /// Bytes written contiguously from the start of each piece.
+    /// 每个分片从起点开始连续已写入的字节数。
     pub pieces: Vec<u64>,
 }
 
@@ -84,8 +82,8 @@ impl ControlFile {
         }
     }
 
-    /// Loads the control file. `Ok(None)` means it does not exist. A corrupt
-    /// file is reported as `InvalidData`; callers treat that as "start over".
+    /// 加载控制文件。`Ok(None)` 表示不存在；文件损坏报 `InvalidData`，
+    /// 调用方按重新开始处理。
     pub(crate) fn load(path: &Path) -> io::Result<Option<Self>> {
         let bytes = match std::fs::read(path) {
             Ok(bytes) => bytes,

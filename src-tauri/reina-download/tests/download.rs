@@ -1,7 +1,6 @@
-//! Integration tests against an in-process fault-injection HTTP server.
+//! 基于进程内故障注入 HTTP 服务器的集成测试。
 //!
-//! Every scenario asserts the final file matches the source bytes exactly, so
-//! a scheduling or offset bug cannot pass silently.
+//! 每个场景都断言最终文件与源数据逐字节一致，调度或偏移错误无法蒙混过关。
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -18,24 +17,23 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 // ---------------------------------------------------------------------------
-// Fault-injection server
+// 故障注入服务器
 
 #[derive(Debug, Clone)]
 enum Mode {
-    /// Honor ranges with 206; plain GET gets 200.
+    /// 正常响应 Range（206）；无 Range 的 GET 返回 200。
     Normal,
-    /// Always answer 200 with the full body, ignoring Range.
+    /// 无视 Range，始终 200 返回完整内容。
     IgnoreRange,
-    /// Always answer 403.
+    /// 始终 403。
     Forbidden,
-    /// 429 with `Retry-After: 0` for the first N requests, then Normal.
+    /// 前 N 个请求返回 429 加 `Retry-After: 0`，之后正常。
     RateLimitFirst(usize),
-    /// For the first N range requests, send headers then only `bytes` of body
-    /// and drop the connection.
+    /// 前 N 个 Range 请求发出头部后只发 `bytes` 字节即断开。
     DropAfter { bytes: usize, times: usize },
-    /// Report a wrong total length in Content-Range.
+    /// Content-Range 报告错误的总长。
     WrongTotal(u64),
-    /// Send response headers, then nothing, for the first N requests.
+    /// 前 N 个请求只发响应头，不发数据。
     StallFirst(usize),
 }
 
@@ -44,8 +42,7 @@ struct ServerState {
     mode: std::sync::Mutex<Mode>,
     requests: AtomicUsize,
     body_bytes_served: AtomicU64,
-    /// Delay inserted between 8 KiB body writes, to slow tests that need to
-    /// observe a download mid-flight.
+    /// 每写 8 KiB 插入的延迟，让测试能观察到下载中途的状态。
     chunk_delay: Duration,
 }
 
@@ -94,7 +91,7 @@ impl Server {
 }
 
 async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Result<()> {
-    // Read one request's headers.
+    // 读完一个请求的头部。
     let mut buf = Vec::new();
     let mut byte = [0u8; 1];
     while !buf.ends_with(b"\r\n\r\n") {
@@ -121,8 +118,8 @@ async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Resu
     let mode = state.mode.lock().unwrap().clone();
     match mode {
         Mode::Forbidden => return respond_status(&mut stream, "403 Forbidden").await,
-        // Let the probe (bytes=0-0) through so the rate limit lands on piece
-        // requests, exercising the adaptive-concurrency path.
+        // 放行探测请求（bytes=0-0），让 429 落在分片请求上，
+        // 以覆盖自适应并发路径。
         Mode::RateLimitFirst(remaining)
             if remaining > 0 && range.as_deref() != Some("bytes=0-0") =>
         {
@@ -139,8 +136,7 @@ async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Resu
                 end - start + 1
             );
             stream.write_all(head.as_bytes()).await?;
-            // Send nothing further; hold the socket open until the client
-            // gives up, so the stall detector has to fire.
+            // 之后什么都不发，保持连接直到客户端放弃，逼停滞检测生效。
             tokio::time::sleep(Duration::from_secs(120)).await;
             return Ok(());
         }
@@ -201,7 +197,7 @@ async fn write_body(
         }
     }
     if cap.is_some() {
-        // Simulate an abrupt disconnect mid-body.
+        // 模拟传输中途突然断开。
         let _ = stream.shutdown().await;
     }
     Ok(())
@@ -228,10 +224,10 @@ async fn respond_status(stream: &mut TcpStream, status: &str) -> std::io::Result
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// 辅助
 
 fn test_data(len: usize) -> Vec<u8> {
-    // Position-dependent bytes: any misplaced write changes the comparison.
+    // 字节值与位置相关，任何写错位置都会改变比较结果。
     (0..len).map(|i| ((i * 31 + i / 251) % 251) as u8).collect()
 }
 
@@ -288,7 +284,7 @@ async fn run_download(
 }
 
 // ---------------------------------------------------------------------------
-// Scenarios
+// 场景
 
 #[tokio::test]
 async fn downloads_with_multiple_connections() {
@@ -327,7 +323,7 @@ async fn resumes_after_cancel_and_url_change() {
         sender,
         cancel.clone(),
     ));
-    // Cancel once a meaningful amount has been written.
+    // 等到写入量有意义后再取消。
     loop {
         receiver.changed().await.unwrap();
         if receiver.borrow().written > 512 * 1024 {
@@ -342,7 +338,7 @@ async fn resumes_after_cancel_and_url_change() {
         "control must persist after cancel"
     );
 
-    // The control file must never claim bytes that are not really in the file.
+    // 控制文件绝不能声称文件里没有的字节。
     let control: serde_json::Value =
         serde_json::from_slice(&std::fs::read(control_path(&paths.target)).unwrap()).unwrap();
     let piece_size = control["piece_size"].as_u64().unwrap();
@@ -361,7 +357,7 @@ async fn resumes_after_cancel_and_url_change() {
         "cancel happened after progress; control should show it"
     );
 
-    // Resume with a *different* URL, as after a signed-link refresh.
+    // 换一个 URL 续传，模拟签名直链刷新。
     let served_before_resume = server.body_bytes_served();
     let (result, progress) = run_download(
         request(

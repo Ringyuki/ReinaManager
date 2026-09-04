@@ -1,4 +1,4 @@
-//! Response validation helpers shared by the probe and the piece workers.
+//! 探测与分片请求共用的响应校验辅助。
 
 use std::time::{Duration, SystemTime};
 
@@ -7,8 +7,7 @@ use reqwest::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, HeaderMap
 
 use crate::error::DownloadError;
 
-/// Upper bound honored for `Retry-After`, so a hostile value cannot park the
-/// download for an hour.
+/// `Retry-After` 的采纳上限，防止恶意值让下载停摆过久。
 pub(crate) const MAX_RETRY_AFTER: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,7 +17,7 @@ pub(crate) struct ContentRange {
     pub total: Option<u64>,
 }
 
-/// Parses a satisfied `Content-Range: bytes a-b/N` header. `N` may be `*`.
+/// 解析已满足的 `Content-Range: bytes a-b/N`；`N` 可为 `*`。
 pub(crate) fn parse_content_range(value: &str) -> Result<ContentRange, DownloadError> {
     let value = value.trim();
     let rest = value
@@ -59,7 +58,7 @@ pub(crate) fn parse_content_range(value: &str) -> Result<ContentRange, DownloadE
     Ok(ContentRange { start, end, total })
 }
 
-/// Parses the total from an unsatisfied `Content-Range: bytes */N` header.
+/// 从未满足的 `Content-Range: bytes */N` 中解析总长。
 pub(crate) fn parse_unsatisfied_total(value: &str) -> Result<u64, DownloadError> {
     let value = value.trim();
     let rest = value.strip_prefix("bytes ").ok_or_else(|| {
@@ -98,8 +97,7 @@ pub(crate) fn content_length(headers: &HeaderMap) -> Result<Option<u64>, Downloa
         .map_err(|error| DownloadError::Protocol(format!("invalid Content-Length: {error}")))
 }
 
-/// Rejects transfer-encoded bodies: a compressed body would make byte offsets
-/// meaningless.
+/// 拒绝带传输编码的响应体：被压缩的 body 会让字节偏移失去意义。
 pub(crate) fn ensure_identity(headers: &HeaderMap) -> Result<(), DownloadError> {
     if let Some(value) = headers.get(CONTENT_ENCODING) {
         let value = value.to_str().map_err(|error| {
@@ -125,7 +123,7 @@ pub(crate) fn header_string(
         .filter(|value| !value.is_empty())
 }
 
-/// Whether a status is worth retrying after a delay.
+/// 该状态是否值得延迟后重试。
 #[must_use]
 pub(crate) fn is_retryable_status(status: StatusCode) -> bool {
     status == StatusCode::REQUEST_TIMEOUT
@@ -141,7 +139,7 @@ pub(crate) fn status_error(status: StatusCode) -> DownloadError {
     }
 }
 
-/// Parses `Retry-After` as either delay-seconds or an HTTP date.
+/// 解析 `Retry-After`（秒数或 HTTP 日期两种形式）。
 pub(crate) fn retry_after(headers: &HeaderMap, now: SystemTime) -> Option<Duration> {
     let value = headers.get(RETRY_AFTER)?.to_str().ok()?.trim();
     let delay = if let Ok(seconds) = value.parse::<u64>() {

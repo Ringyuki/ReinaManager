@@ -5,59 +5,53 @@ use std::time::Duration;
 use crate::error::DownloadError;
 use crate::limiter::Gate;
 
-/// Default piece size: small enough that a pause or crash loses seconds, large
-/// enough that a multi-gigabyte file stays under a few thousand requests.
+/// 默认分片大小：足够小让中断损失以秒计，又不会让大文件产生过多请求。
 pub const DEFAULT_PIECE_SIZE: u64 = 4 * 1024 * 1024;
 
-/// What to download and where to put it.
+/// 下载请求：下什么、写到哪。
 #[derive(Debug, Clone)]
 pub struct DownloadRequest {
-    /// Source URL. May differ from the URL used on a previous attempt; resume
-    /// keys on size and identity, not URL.
+    /// 下载地址。续传身份与 URL 无关，重试时可以换新直链。
     pub url: String,
-    /// Destination path. The control file is `target` + [`crate::CONTROL_SUFFIX`].
+    /// 目标路径；控制文件为 `target` + [`crate::CONTROL_SUFFIX`]。
     pub target: PathBuf,
-    /// Size the caller expects, from the install request. The server's reported
-    /// size must match this.
+    /// 调用方期望的文件大小，服务器报告的大小必须与之一致。
     pub expected_size: u64,
-    /// Stable content identity such as `"sha256:abc…"`. When present, changed
-    /// `ETag`/`Last-Modified` do not abort a resume, because the caller verifies
-    /// the finished file anyway.
+    /// 内容标识（如 `"sha256:…"`）。提供时 ETag/Last-Modified 漂移不中断
+    /// 续传，最终哈希校验由调用方兜底。
     pub identity: Option<String>,
 }
 
-/// A shared cap on concurrent connections across several downloads, so running
-/// two installs at once cannot flood one CDN.
+/// 跨下载共享的连接总数上限，避免多任务并行时打爆同一 CDN。
 #[derive(Debug, Clone)]
 pub struct SharedBudget(pub(crate) Gate);
 
 impl SharedBudget {
-    /// Creates a budget allowing `max` concurrent connections in total.
+    /// 创建总共允许 `max` 条并发连接的预算。
     #[must_use]
     pub fn new(max: usize) -> Self {
         Self(Gate::new(max))
     }
 }
 
-/// Tunables for a single download. [`Default`] matches the values documented in
-/// the design proposal.
+/// 单个下载的可调参数；[`Default`] 即设计方案中的默认值。
 #[derive(Debug, Clone)]
 pub struct DownloadOptions {
     pub piece_size: u64,
     pub min_connections: usize,
     pub initial_connections: usize,
     pub max_connections: usize,
-    /// Disconnect and retry a piece after this long without any body bytes.
+    /// 单连接超过该时长没有收到字节即断开重试。
     pub stall_timeout: Duration,
-    /// How often durable progress is flushed to the control file.
+    /// 落盘进度写入控制文件的间隔。
     pub commit_interval: Duration,
-    /// How often a progress snapshot is pushed to the watch channel.
+    /// 进度快照推送到 watch 通道的间隔。
     pub progress_interval: Duration,
-    /// Grow the connection target after this many consecutive piece successes.
+    /// 连续成功该数量的分片后连接目标加一。
     pub grow_after_successes: u32,
-    /// Fail the whole download after this many consecutive retryable failures.
+    /// 连续可重试失败超过该数量则整体失败。
     pub max_consecutive_failures: u32,
-    /// Optional cross-download connection budget.
+    /// 可选的跨下载连接预算。
     pub budget: Option<SharedBudget>,
 }
 
@@ -109,11 +103,11 @@ impl DownloadOptions {
     }
 }
 
-/// How a download ended.
+/// 下载的结束方式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Outcome {
-    /// The target file is complete and the control file removed.
+    /// 目标文件完整，控制文件已移除。
     Completed,
-    /// Cancellation was observed; progress is persisted for a later resume.
+    /// 收到取消信号；进度已持久化，可稍后续传。
     Cancelled,
 }

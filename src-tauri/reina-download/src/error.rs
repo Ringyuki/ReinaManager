@@ -1,41 +1,36 @@
 use std::fmt;
 use std::path::PathBuf;
 
-/// Errors returned by [`crate::download`].
+/// [`crate::download`] 返回的错误。
 ///
-/// Cancellation is not an error: a cancelled download returns
-/// [`crate::Outcome::Cancelled`] after persisting its state.
+/// 取消不是错误：被取消的下载在落盘后返回 [`crate::Outcome::Cancelled`]。
 #[derive(Debug)]
 pub enum DownloadError {
-    /// The server answered with a status the downloader cannot recover from,
-    /// or a retryable status whose retry budget has been exhausted.
+    /// 无法恢复的 HTTP 状态，或可重试状态耗尽了重试预算。
     Http { status: u16, retryable: bool },
-    /// The server's reported size does not match the size the caller expects.
+    /// 服务器报告的大小与调用方期望不一致。
     SizeMismatch { expected: u64, actual: u64 },
-    /// The remote resource changed identity while downloading and no checksum
-    /// was available to justify continuing.
+    /// 远端内容发生变化，且没有校验和可以兜底。
     RemoteChanged(String),
-    /// A response violated the HTTP range contract (bad `Content-Range`,
-    /// unexpected body length, compressed body, and so on).
+    /// 响应违反 Range 协议（Content-Range 错误、长度不符、被压缩等）。
     Protocol(String),
-    /// Transport failure: connect, TLS, reset, stall.
+    /// 传输层失败：连接、TLS、重置、停滞。
     Network(String),
-    /// Local filesystem failure while writing data or control state.
+    /// 写数据或控制文件时的本地磁盘错误。
     Disk(std::io::Error),
-    /// The target path already exists, is not a completed download, and there
-    /// is no control file describing it.
+    /// 目标路径已有文件，但既不是完成的下载也没有控制文件描述它。
     TargetConflict(PathBuf),
-    /// Consecutive retryable failures exceeded the configured budget.
+    /// 连续可重试失败超出配置的预算。
     RetriesExhausted {
         attempts: u32,
         last: Box<DownloadError>,
     },
-    /// The caller supplied an invalid request or option.
+    /// 调用方传入的请求或配置无效。
     InvalidConfig(String),
 }
 
 impl DownloadError {
-    /// Whether another attempt at the same operation could reasonably succeed.
+    /// 再试一次是否可能成功。
     #[must_use]
     pub fn is_retryable(&self) -> bool {
         match self {
@@ -50,8 +45,7 @@ impl DownloadError {
         }
     }
 
-    /// The HTTP status associated with this failure, looking through
-    /// [`Self::RetriesExhausted`].
+    /// 关联的 HTTP 状态码，会透过 [`Self::RetriesExhausted`] 查找。
     #[must_use]
     pub fn http_status(&self) -> Option<u16> {
         match self {
@@ -61,7 +55,7 @@ impl DownloadError {
         }
     }
 
-    /// Stable machine-readable name for logging and UI mapping.
+    /// 稳定的错误类别名，供日志与 UI 映射。
     #[must_use]
     pub fn kind(&self) -> &'static str {
         match self {

@@ -1,8 +1,7 @@
-//! Concurrency control.
+//! 并发控制。
 //!
-//! [`Gate`] is a resizable counting limiter used for the cross-download budget.
-//! [`Adaptive`] tracks a per-download connection target that halves on rate
-//! limiting and grows back after a run of successes.
+//! [`Gate`] 是上限可调的计数限流器，用于跨下载连接预算；[`Adaptive`]
+//! 维护单个下载的连接目标：限流时减半，连续成功后回升。
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -11,7 +10,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
-/// A resizable async counting semaphore.
+/// 上限可调的异步计数信号量。
 #[derive(Debug, Clone)]
 pub(crate) struct Gate {
     inner: Arc<GateInner>,
@@ -29,7 +28,7 @@ struct GateState {
     in_flight: usize,
 }
 
-/// Releases one slot on drop.
+/// drop 时释放一个槽位。
 #[derive(Debug)]
 pub(crate) struct GatePermit {
     inner: Arc<GateInner>,
@@ -48,7 +47,7 @@ impl Gate {
         }
     }
 
-    /// Waits for a slot, or returns `None` if `cancel` fires first.
+    /// 等待空闲槽位；`cancel` 先触发则返回 `None`。
     pub(crate) async fn acquire(&self, cancel: &CancellationToken) -> Option<GatePermit> {
         loop {
             let notified = {
@@ -91,7 +90,7 @@ impl Drop for GatePermit {
     }
 }
 
-/// Per-download adaptive connection target.
+/// 单个下载的自适应连接目标。
 #[derive(Debug)]
 pub(crate) struct Adaptive {
     min: usize,
@@ -127,15 +126,13 @@ impl Adaptive {
         self.target.load(Ordering::Relaxed)
     }
 
-    /// Delay to wait before the next request, from a `Retry-After`-driven pause.
+    /// 距下一次允许请求的等待时长（来自 Retry-After 的全局暂停）。
     pub(crate) fn remaining_pause(&self) -> Duration {
         let timing = self.lock();
         timing.not_before.saturating_duration_since(Instant::now())
     }
 
-    /// Records a rate limit observed by an attempt that started at
-    /// `attempt_started`. Halves the target once per change window and extends
-    /// the shared pause by `delay`.
+    /// 记录一次限流：目标减半（同一窗口只减一次），全局暂停延长 `delay`。
     pub(crate) fn on_rate_limited(&self, attempt_started: Instant, delay: Duration) {
         let now = Instant::now();
         let mut timing = self.lock();
@@ -156,8 +153,7 @@ impl Adaptive {
     }
 
     fn decrease(&self, attempt_started: Instant, now: Instant, timing: &mut Timing) {
-        // Only one reduction per window, so a burst of failures from the same
-        // batch does not collapse the target all the way to the floor.
+        // 同一窗口只减一次，同批连接的连锁失败不会把目标直接打到底。
         if timing
             .last_change
             .is_some_and(|last| attempt_started <= last)
@@ -208,7 +204,7 @@ mod tests {
         let start = Instant::now();
         adaptive.on_rate_limited(start, Duration::from_millis(0));
         assert_eq!(adaptive.current(), 4);
-        // Same window: a second failure from an earlier attempt does not reduce again.
+        // 同一窗口内更早发起的尝试再次失败，不重复减半。
         adaptive.on_rate_limited(start, Duration::from_millis(0));
         assert_eq!(adaptive.current(), 4);
         adaptive.on_success();

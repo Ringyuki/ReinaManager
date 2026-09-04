@@ -1,4 +1,4 @@
-//! Download orchestration: probe, piece scheduling, committer, finalize.
+//! 下载编排：探测、分片调度、提交器、收尾。
 
 use std::collections::VecDeque;
 use std::fs::File;
@@ -23,13 +23,9 @@ use crate::types::{DownloadOptions, DownloadRequest, Outcome};
 const BASE_BACKOFF: Duration = Duration::from_millis(500);
 const MAX_BACKOFF: Duration = Duration::from_secs(30);
 
-/// Downloads `request.url` into `request.target`, resuming from the control
-/// file when one is present. See the crate documentation for the contract.
+/// 把 `request.url` 下载到 `request.target`，存在控制文件时自动续传。
 ///
-/// # Errors
-///
-/// Returns a [`DownloadError`] describing the first unrecoverable failure.
-/// Cancellation is reported as `Ok(Outcome::Cancelled)`, never as an error.
+/// 取消以 `Ok(Outcome::Cancelled)` 返回，不算错误；契约详见 crate 文档。
 pub async fn download(
     request: DownloadRequest,
     options: DownloadOptions,
@@ -40,9 +36,8 @@ pub async fn download(
     options.validate()?;
     let control_file_path = control_path(&request.target);
 
-    // A target without a control file is either an already-finished download
-    // or a foreign file we must not touch. A corrupt control file still counts
-    // as "a download was in progress": start that download over.
+    // 无控制文件的目标要么是已完成的下载，要么是不能动的外来文件；
+    // 控制文件损坏仍算"下载进行过"，直接重新开始。
     let control_file_exists = control_file_path.exists();
     let existing_control = match ControlFile::load(&control_file_path) {
         Ok(existing) => existing,
@@ -98,7 +93,7 @@ async fn run(
     control_file_path: &std::path::Path,
     cancel: &CancellationToken,
 ) -> Result<Outcome, DownloadError> {
-    // Probe.
+    // 探测。
     shared.set_phase(Phase::Probing);
     let probe = tokio::select! {
         biased;
@@ -115,15 +110,14 @@ async fn run(
     }
     let size = request.expected_size;
 
-    // Reconcile any previous state with what the server now reports.
+    // 用服务器当前报告的信息核对既有状态。
     let mut control = reconcile(existing_control, request, &probe, options.piece_size, size);
     if !probe.range_supported {
-        // A server that ignores ranges cannot resume a partial file.
+        // 忽略 Range 的服务器无法续传半成品。
         control.pieces.iter_mut().for_each(|written| *written = 0);
     }
 
-    // Open the target and persist the control file before the first byte, so
-    // "target present, control absent" always means a finished download.
+    // 先建目标文件并落控制文件再收字节，保证"有目标无控制文件"恒等于下载完成。
     let target_path = request.target.clone();
     let file = tokio::task::spawn_blocking(move || fsx::open_target(&target_path, size, true))
         .await
@@ -172,8 +166,7 @@ async fn run(
         .await
     };
 
-    // Stop the periodic committer, then always take one final durable commit so
-    // pause/cancel/errors never lose more than the page cache.
+    // 停掉周期提交器后必做一次最终落盘提交，暂停/取消/出错最多损失页缓存。
     committer_task.abort();
     let _ = committer_task.await;
     let commit_result = committer.commit().await;
@@ -193,7 +186,7 @@ async fn run(
 }
 
 // ---------------------------------------------------------------------------
-// Probe
+// 探测
 
 #[derive(Debug, Clone)]
 struct ProbeResult {
@@ -203,8 +196,7 @@ struct ProbeResult {
     last_modified: Option<String>,
 }
 
-/// Retries the probe on retryable failures (429, 5xx, transport errors) with
-/// the same backoff policy as piece requests.
+/// 探测失败可重试（429、5xx、传输错误）时按与分片一致的退避策略重试。
 async fn probe_with_retry(
     client: &Client,
     url: &str,
@@ -251,7 +243,7 @@ async fn probe(client: &Client, url: &str) -> Result<ProbeResult, DownloadError>
         });
     }
     if status == StatusCode::OK {
-        // Server ignored the range: fall back to a single stream.
+        // 服务器忽略了 Range：回退单流。
         http::ensure_identity(&headers)?;
         let total = http::content_length(&headers)?;
         return Ok(ProbeResult {
@@ -302,14 +294,13 @@ fn reconcile(
     }
     if let (Some(ours), Some(theirs)) = (&request.identity, &control.identity) {
         if ours == theirs {
-            // Same declared content: validator drift (CDN edges disagreeing on
-            // ETag) is tolerated because the caller verifies the final hash.
+            // 声明的内容一致：CDN 各节点 ETag 漂移可以容忍，最终哈希由调用方兜底。
             return control;
         }
         log::info!("discarding control file: content identity changed");
         return fresh();
     }
-    // No checksum to fall back on: validators are the only safety net.
+    // 没有校验和兜底，validators 是唯一防线。
     let etag_matches = match (&control.etag, &probe.etag) {
         (Some(stored), Some(current)) => stored == current,
         _ => true,
@@ -327,7 +318,7 @@ fn reconcile(
 }
 
 // ---------------------------------------------------------------------------
-// Segmented mode
+// 分段模式
 
 struct WorkerReport {
     index: u64,
@@ -399,7 +390,7 @@ async fn run_segmented(
             if pending.is_empty() {
                 break Ok(Outcome::Completed);
             }
-            // Target shrank below queued work between iterations; yield briefly.
+            // 目标在两次循环间缩小到低于排队量，稍等再看。
             tokio::time::sleep(Duration::from_millis(10)).await;
             continue;
         }
@@ -480,7 +471,7 @@ async fn piece_worker(
         }))
     };
 
-    // Backoff for retries, then any shared rate-limit pause, then the budget.
+    // 依次等待：重试退避、全局限流暂停、连接预算。
     let delay = backoff(attempt).max(adaptive.remaining_pause());
     if !delay.is_zero() {
         tokio::select! {
@@ -587,8 +578,7 @@ async fn fetch_piece(
     let mut written = already;
     loop {
         if cancel.is_cancelled() {
-            // Report as retryable network interruption; the outer loop sees the
-            // token and stops before requeueing.
+            // 报告为可重试的网络中断；外层循环看到取消令牌，不会真正重排。
             return Err(plain(DownloadError::Network("cancelled".into())));
         }
         let chunk = tokio::select! {
@@ -633,7 +623,7 @@ async fn fetch_piece(
 }
 
 // ---------------------------------------------------------------------------
-// Single-stream fallback
+// 单流回退
 
 #[allow(clippy::too_many_arguments)]
 async fn run_single_stream(
@@ -672,7 +662,7 @@ async fn run_single_stream(
                         last: Box::new(error),
                     });
                 }
-                // Restart from zero: the server does not honor ranges.
+                // 从零重来：服务器不认 Range。
                 for slot in pieces.iter() {
                     slot.store(0, Ordering::Relaxed);
                 }
@@ -684,7 +674,7 @@ async fn run_single_stream(
     }
 }
 
-/// One full pass. `Ok(true)` = complete, `Ok(false)` = cancelled.
+/// 完整跑一遍。`Ok(true)` 完成，`Ok(false)` 被取消。
 #[allow(clippy::too_many_arguments)]
 async fn stream_once(
     request: &DownloadRequest,
@@ -744,7 +734,7 @@ async fn stream_once(
             .map_err(DownloadError::Disk)?;
         absolute += chunk_len;
         shared.written.store(absolute, Ordering::Relaxed);
-        // Contiguous progress: fill every fully or partially covered piece.
+        // 连续进度：填充所有被覆盖的分片计数。
         let mut cursor = absolute;
         for (index, slot) in pieces.iter().enumerate() {
             let len = piece_len(size, options.piece_size, index as u64);
@@ -765,7 +755,7 @@ async fn stream_once(
 }
 
 // ---------------------------------------------------------------------------
-// Committer, finalize, emitter
+// 提交器、收尾、进度推送
 
 #[derive(Clone)]
 struct Committer {
@@ -777,8 +767,7 @@ struct Committer {
 }
 
 impl Committer {
-    /// Snapshot piece counters, make the data durable, then record the
-    /// snapshot. Ordering guarantees the control file never over-claims.
+    /// 先快照分片计数、再落盘、最后写控制文件——顺序保证控制文件永不高估。
     async fn commit(&self) -> Result<(), DownloadError> {
         let snapshot: Vec<u64> = self
             .pieces
@@ -872,7 +861,7 @@ fn spawn_emitter(
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// 辅助
 
 fn backoff(attempt: u32) -> Duration {
     if attempt == 0 {
@@ -880,7 +869,7 @@ fn backoff(attempt: u32) -> Duration {
     }
     let exponent = attempt.saturating_sub(1).min(6);
     let base = BASE_BACKOFF.saturating_mul(1 << exponent).min(MAX_BACKOFF);
-    // Cheap jitter without a rand dependency: sub-millisecond clock noise.
+    // 用亚毫秒时钟噪声做抖动，省掉 rand 依赖。
     let jitter_ms = u64::from(
         (std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

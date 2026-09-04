@@ -1,14 +1,13 @@
-//! Filesystem helpers: positioned writes, sparse preallocation, atomic replace.
+//! 文件系统辅助：定位写、稀疏预分配、原子替换。
 
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Writes the whole buffer at `offset` without touching a shared cursor.
+/// 在 `offset` 处写入整个缓冲区，不动共享游标。
 ///
-/// Safe to call concurrently from several threads on the same `File` as long
-/// as the ranges do not overlap.
+/// 只要范围不重叠，多线程对同一 `File` 并发调用是安全的。
 pub(crate) fn write_all_at(file: &File, offset: u64, buf: &[u8]) -> io::Result<()> {
     let mut written = 0usize;
     while written < buf.len() {
@@ -40,10 +39,9 @@ fn write_at(file: &File, offset: u64, buf: &[u8]) -> io::Result<usize> {
     file.seek_write(buf, offset)
 }
 
-/// Opens (or creates) the target file and reserves `size` bytes.
+/// 打开（或创建）目标文件并预留 `size` 字节。
 ///
-/// On Windows the file is marked sparse first so that reserving space does not
-/// force NTFS to zero-fill the whole file on the first write near the end.
+/// Windows 上先标记稀疏，避免 NTFS 在靠后位置首次写入时同步填零整个文件。
 pub(crate) fn open_target(path: &Path, size: u64, preallocate: bool) -> io::Result<File> {
     let file = OpenOptions::new()
         .read(true)
@@ -67,8 +65,8 @@ fn mark_sparse(file: &File) -> io::Result<()> {
     use windows_sys::Win32::System::Ioctl::FSCTL_SET_SPARSE;
 
     let mut returned: u32 = 0;
-    // SAFETY: the handle is valid for the lifetime of `file`; no in/out buffers
-    // are passed and `returned` outlives the call.
+    // SAFETY: 句柄在 `file` 存活期内有效；无输入输出缓冲区，
+    // `returned` 存活到调用结束。
     let ok = unsafe {
         DeviceIoControl(
             file.as_raw_handle() as _,
@@ -92,8 +90,7 @@ fn mark_sparse(_file: &File) -> io::Result<()> {
     Ok(())
 }
 
-/// Writes `bytes` to `path` by way of a temporary sibling and a rename, so a
-/// crash never leaves a half-written file behind.
+/// 先写临时文件再 rename，崩溃不会留下半写的文件。
 pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let temp = temp_path(path);
     {
@@ -114,7 +111,7 @@ fn temp_path(path: &Path) -> PathBuf {
     PathBuf::from(value)
 }
 
-/// Removes a file, treating "not found" as success.
+/// 删除文件，不存在视为成功。
 pub(crate) fn remove_if_exists(path: &Path) -> io::Result<()> {
     match std::fs::remove_file(path) {
         Ok(()) => Ok(()),
