@@ -23,7 +23,8 @@ use std::sync::OnceLock;
 use tauri::Manager;
 use tokio::sync::{Semaphore, SemaphorePermit, watch};
 
-const MAX_CONCURRENT_DOWNLOADS: usize = 1;
+// 多任务的总连接数由 download.rs 的全局连接预算约束，单任务限流时各自独立降级。
+const MAX_CONCURRENT_DOWNLOADS: usize = 3;
 const MAX_CONCURRENT_EXTRACTS: usize = 1;
 
 static DOWNLOAD_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
