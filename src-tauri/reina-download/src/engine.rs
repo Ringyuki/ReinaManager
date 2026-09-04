@@ -100,6 +100,25 @@ async fn run(
         () = cancel.cancelled() => return Ok(Outcome::Cancelled),
         probe = probe_with_retry(client, &request.url, options, &shared) => probe?,
     };
+    // 部分源站只在首个请求上忽略 Range；短暂等待后复测一次，尽量避免进入单流。
+    let probe = if probe.range_supported {
+        probe
+    } else {
+        tokio::select! {
+            biased;
+            () = cancel.cancelled() => return Ok(Outcome::Cancelled),
+            () = tokio::time::sleep(options.range_confirm_delay) => {}
+        }
+        match self::probe(client, &request.url).await.ok() {
+            Some(second)
+                if second.range_supported
+                    && (probe.total.is_none() || second.total == probe.total) =>
+            {
+                second
+            }
+            _ => probe,
+        }
+    };
     if let Some(total) = probe.total {
         if total != request.expected_size {
             return Err(DownloadError::SizeMismatch {
@@ -835,12 +854,15 @@ fn spawn_upgrade_prober(
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let interval = interval.max(Duration::from_millis(100));
+        // 源站往往很快恢复 206，首次探测提前到 2 秒内。
+        let mut delay = interval.min(Duration::from_secs(2));
         loop {
             tokio::select! {
                 biased;
                 () = cancel.cancelled() => break,
-                () = tokio::time::sleep(interval) => {}
+                () = tokio::time::sleep(delay) => {}
             }
+            delay = interval;
             if let Ok(result) = probe(&client, &url).await {
                 if result.range_supported {
                     upgrade.store(true, Ordering::Relaxed);

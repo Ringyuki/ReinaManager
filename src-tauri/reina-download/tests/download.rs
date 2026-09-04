@@ -259,6 +259,7 @@ fn fast_options() -> DownloadOptions {
         progress_interval: Duration::from_millis(50),
         grow_after_successes: 4,
         max_consecutive_failures: 20,
+        range_confirm_delay: Duration::from_millis(100),
         upgrade_probe_interval: Duration::from_millis(150),
         budget: None,
     }
@@ -415,9 +416,31 @@ async fn falls_back_to_single_stream_when_ranges_ignored() {
 }
 
 #[tokio::test]
+async fn confirm_probe_avoids_single_stream_when_first_request_ignores_range() {
+    let data = test_data(600_000);
+    // 只有第一个请求无视 Range：复测探测应直接进入分段模式。
+    let server = Server::start(data.clone(), Mode::IgnoreRangeFirst(1), Duration::ZERO).await;
+    let paths = run_paths();
+
+    let (result, _) = run_download(
+        request(server.url("/first-only"), &paths.target, data.len() as u64),
+        fast_options(),
+    )
+    .await;
+
+    assert!(matches!(result, Ok(Outcome::Completed)), "{result:?}");
+    assert_eq!(std::fs::read(&paths.target).unwrap(), data);
+    assert!(
+        server.ranged_responses() >= 2,
+        "复测后应直接分段下载，实际 206 响应数: {}",
+        server.ranged_responses()
+    );
+}
+
+#[tokio::test]
 async fn upgrades_to_segmented_when_ranges_become_available() {
     let data = test_data(2 * 1024 * 1024);
-    // 前两个请求（探测 + 单流 GET）无视 Range，之后正常——模拟 CDN 冷缓存。
+    // 首测与复测都拿到 200，逼下载进入单流，再由后台探测触发升级。
     let server = Server::start(
         data.clone(),
         Mode::IgnoreRangeFirst(2),
